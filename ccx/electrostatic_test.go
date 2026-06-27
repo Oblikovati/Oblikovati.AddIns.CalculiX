@@ -38,6 +38,94 @@ func TestDeckWritesElectrostatic(t *testing.T) {
 	}
 }
 
+func TestDeckWritesCurrentDrivenEM(t *testing.T) {
+	deck := writeDeckString(t, &AnalysisModel{
+		Analysis:     AnalysisElectromagnetic,
+		Mesh:         unitTet(),
+		Material:     MaterialProps{Name: "COPPER", ElectricalSigma: 6e4},
+		Temperatures: []TemperatureBC{{Name: "VGND", Nodes: []int{1}, TempK: 0}},
+		HeatFluxes:   []HeatFlux{{Name: "ICURR", Faces: []ElemFace{{Elem: 1, Face: 2}}, Flux: 25}},
+	})
+	for _, want := range []string{
+		"*HEAT TRANSFER, STEADY STATE",
+		"*CONDUCTIVITY",
+		"VGND, 11, 11, 0", // one grounded face (Dirichlet reference)
+		"*DFLUX",
+		"1, S2, 25", // injected current density on the loaded element-face
+		"NT",
+	} {
+		if !strings.Contains(deck, want) {
+			t.Errorf("current-driven EM deck missing %q\n%s", want, deck)
+		}
+	}
+	if strings.Contains(deck, "*ELASTIC") {
+		t.Error("a current-driven EM deck should not write *ELASTIC")
+	}
+}
+
+func TestCurrentDrivenPrerequisites(t *testing.T) {
+	base := func() *AnalysisModel {
+		return &AnalysisModel{
+			Analysis:     AnalysisElectromagnetic,
+			Mesh:         unitTet(),
+			Material:     MaterialProps{Name: "C", ElectricalSigma: 1},
+			Temperatures: []TemperatureBC{{Name: "VGND", Nodes: []int{1}, TempK: 0}},
+			HeatFluxes:   []HeatFlux{{Name: "ICURR", Faces: []ElemFace{{Elem: 1, Face: 2}}, Flux: 10}},
+		}
+	}
+	if err := checkPrerequisites(base()); err != nil {
+		t.Fatalf("a valid current-driven model should pass: %v", err)
+	}
+	noCurrent := base()
+	noCurrent.HeatFluxes[0].Flux = 0
+	if err := checkPrerequisites(noCurrent); err == nil {
+		t.Error("zero injected current should be rejected")
+	}
+}
+
+// TestCurrentDrivenResistance is the current-driven EM oracle: a bar grounded on one face and
+// fed a current density J on the far face develops, at steady state, a potential at the fed
+// face of
+//
+//	V = J*L/sigma
+//
+// (Ohm's law, the electric analog of the Fourier q·L/k drop). Unlike the voltage-driven Laplace
+// case, the potential SCALES with 1/conductivity, so this exercises that the conductivity drives
+// the result. Runs through the real vendored ccx via the *DFLUX current-injection path.
+func TestCurrentDrivenResistance(t *testing.T) {
+	bins := requireSolver(t)
+	const (
+		h, L  = 10.0, 100.0 // mm, bar along z
+		sigma = 50.0        // electrical conductivity (consistent units)
+		j     = 50.0        // injected current density on the far face
+	)
+	dir := t.TempDir()
+	mesh := meshBox(t, bins, h, h, L, dir)
+	ground := selectNodes(mesh, func(n Node) bool { return n.Z < eps(L) })
+	feed := elemFacesAt(mesh, func(n Node) bool { return n.Z > L-eps(L) })
+	if len(ground) == 0 || len(feed) == 0 {
+		t.Fatalf("selection failed (ground=%d feed=%d)", len(ground), len(feed))
+	}
+
+	model := &AnalysisModel{
+		Analysis:     AnalysisElectromagnetic,
+		Mesh:         mesh,
+		Material:     MaterialProps{Name: "COPPER", ElectricalSigma: sigma},
+		Temperatures: []TemperatureBC{{Name: "VGND", Nodes: ground, TempK: 0}},
+		HeatFluxes:   []HeatFlux{{Name: "ICURR", Faces: feed, Flux: j}},
+	}
+	pot := solveHeat(t, bins, model, dir) // NT field = electric potential
+
+	fed := selectNodes(mesh, func(n Node) bool { return n.Z > L-eps(L) })
+	got := meanTemp(pot, fed)
+	want := j * L / sigma
+	relErr := math.Abs(got-want) / want
+	t.Logf("current-driven fed-face potential: FE=%.4f V, Ohm J·L/σ=%.4f V, rel err=%.1f%%", got, want, relErr*100)
+	if relErr > 0.02 {
+		t.Errorf("fed-face potential %.4f V differs from analytic %.4f V by %.1f%% (>2%%)", got, want, relErr*100)
+	}
+}
+
 func TestElectrostaticPrerequisites(t *testing.T) {
 	base := func() *AnalysisModel {
 		return &AnalysisModel{

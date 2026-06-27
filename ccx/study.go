@@ -388,13 +388,22 @@ func applyThermalBCs(m *AnalysisModel, settings StudySettings, groups *FaceGroup
 	m.HeatFluxes = []HeatFlux{{Name: "FLUX", Faces: ef, Flux: settings.HeatFluxQ}}
 }
 
-// applyElectrostaticBCs sets an electric-conduction model's boundary conditions: the
-// applied potential on the first selected face and ground (0 V) on the rest. With both
-// ends prescribed (a potential drop across the conductor), the steady potential field is
-// the linear Laplace solution and is independent of the conductivity magnitude — the
-// conductor's *CONDUCTIVITY only scales the current, not the rendered potential. Both BCs
-// pin the temperature DOF (11), reusing the heat-transfer Dirichlet writer.
+// applyElectrostaticBCs sets an electric-conduction model's boundary conditions, by drive mode:
+// applied voltage (a prescribed potential on both ends) or injected current (a current density
+// on the loaded faces, grounded on the first). Both pin/feed the temperature DOF (11), reusing
+// the heat-transfer Dirichlet and flux writers.
 func applyElectrostaticBCs(m *AnalysisModel, settings StudySettings, groups *FaceGroups, faces []string) {
+	if settings.EMDriveMode == EMCurrent {
+		applyCurrentDrive(m, settings, groups, faces)
+		return
+	}
+	applyVoltageDrive(m, settings, groups, faces)
+}
+
+// applyVoltageDrive prescribes the applied potential on the first face and ground (0 V) on the
+// rest. With both ends prescribed (a potential drop across the conductor), the steady field is
+// the linear Laplace solution, independent of the conductivity magnitude.
+func applyVoltageDrive(m *AnalysisModel, settings StudySettings, groups *FaceGroups, faces []string) {
 	var ground []int
 	for _, key := range faces[1:] {
 		ground = append(ground, groups.Nodes[key]...)
@@ -403,6 +412,18 @@ func applyElectrostaticBCs(m *AnalysisModel, settings StudySettings, groups *Fac
 		{Name: "VHIGH", Nodes: groups.Nodes[faces[0]], TempK: settings.VoltageV},
 		{Name: "VGND", Nodes: dedupeInts(ground), TempK: 0},
 	}
+}
+
+// applyCurrentDrive grounds the first face (0 V) and injects a uniform current density on the
+// loaded faces (*DFLUX). The current flows through the conductor to ground, so the potential
+// scales with the resistance (1/conductivity) — the conductivity now drives the result.
+func applyCurrentDrive(m *AnalysisModel, settings StudySettings, groups *FaceGroups, faces []string) {
+	m.Temperatures = []TemperatureBC{{Name: "VGND", Nodes: groups.Nodes[faces[0]], TempK: 0}}
+	var ef []ElemFace
+	for _, key := range faces[1:] {
+		ef = append(ef, groups.ElemFaces[key]...)
+	}
+	m.HeatFluxes = []HeatFlux{{Name: "ICURR", Faces: ef, Flux: settings.CurrentDensity}}
 }
 
 // applyLoad attaches the configured load to the model.

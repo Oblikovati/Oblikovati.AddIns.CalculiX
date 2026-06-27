@@ -34,22 +34,27 @@ solid-only mesh:
   `.frd` `NT`/`NDTEMP` block is read back as the potential field.
 - **Material:** `*CONDUCTIVITY` carries the **electrical** conductivity (a dedicated
   `ElectricalSigma`, distinct from the thermal `Conductivity`).
-- **Boundary conditions:** an applied potential on the first selected face and ground
-  (0 V) on the rest, both written as `*BOUNDARY` on DOF 11 — reusing the heat-transfer
-  Dirichlet writer.
+- **Drive (two modes):**
+  - *Voltage* (Dirichlet–Dirichlet): an applied potential on the first selected face and
+    ground (0 V) on the rest, both `*BOUNDARY` on DOF 11 — the Laplace problem. The steady
+    field is the linear solution and is **independent of the conductivity magnitude**
+    (validated: mid-plane potential = V₀/2, span [0, V₀]).
+  - *Current* (Neumann–Dirichlet): the first face is grounded (`*BOUNDARY` 0 V) and a
+    current density is **injected** on the loaded faces via `*DFLUX` (the heat-flux card
+    reused). The current flows to ground, so the potential **scales with 1/conductivity**
+    (Ohm's law, the analog of Fourier's `q·L/k` drop) — validated: fed-face potential
+    `= J·L/σ`, exact through the real solver.
+- **Material:** `*CONDUCTIVITY` carries the **electrical** conductivity (a dedicated
+  `ElectricalSigma`, distinct from the thermal `Conductivity`).
 - **Result:** the nodal potential field, rendered with the shared scalar-field flood plot
   and reported in volts; the constraint aids mark the high-potential face (red) and the
   ground face (cyan).
 
-Because both ends are prescribed (a potential drop across the conductor), the steady
-field is the linear Laplace solution and is **independent of the conductivity magnitude**
-— validated by an analytic oracle (mid-plane potential = V₀/2, field span [0, V₀]).
-
 ## Consequences
 
 - The electromagnetic path reuses the entire heat-transfer pipeline (step writer,
-  material writer, DOF-11 Dirichlet writer, `NT` parser, scalar-field render) with only
-  relabeling — no new solver machinery.
+  material writer, DOF-11 Dirichlet writer, `*DFLUX` flux writer for the current drive,
+  `NT` parser, scalar-field render) with only relabeling — no new solver machinery.
 - **True magnetics is explicitly out of scope** for the solid-only mesh: magnetostatics,
   induction, and EM–thermal coupling all require air-domain meshing with `*MAGNETIC
   PERMEABILITY` domain tagging. Closing this gap is a future meshing project (generate an
