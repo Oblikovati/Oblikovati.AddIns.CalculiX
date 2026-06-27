@@ -2,8 +2,35 @@
 
 package ccx
 
+import (
+	"fmt"
+	"os"
+)
+
 // resultClientID is the client-graphics group the stress result is pushed under.
 const resultClientID = "ccx.result"
+
+// renderModeShape paints the first mode's displacement-magnitude field over the surface —
+// the standard mode-shape visualization for a modal or buckling result.
+func (e *Engine) renderModeShape(frdPath string, mesh *TetMesh) error {
+	f, err := os.Open(frdPath)
+	if err != nil {
+		return fmt.Errorf("open frd: %w", err)
+	}
+	defer f.Close()
+	disp, err := parseFirstModeDisp(f)
+	if err != nil {
+		return err
+	}
+	field := dispMagnitude(&ResultField{Disp: disp})
+	coords, indices, scalars := surfaceRenderData(mesh, field)
+	mapper := stressMapper(peak(field))
+	if err := e.api.Graphics().RegisterColorMapper(stressMapperName, mapper); err != nil {
+		return err
+	}
+	_, err = e.api.Graphics().AddFloodPlot(resultClientID, coords, indices, scalars, mapper, 1.0)
+	return err
+}
 
 // renderResult paints the von Mises stress field over the mesh surface as a client-
 // graphics flood plot. Mesh coordinates are in mm; the viewport works in host model

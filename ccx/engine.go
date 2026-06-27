@@ -113,8 +113,7 @@ func (e *Engine) runAndReport() {
 		e.reportStatus("CalculiX study failed: " + err.Error())
 		return
 	}
-	e.reportStatus(fmt.Sprintf("CalculiX: %d elements, peak von Mises %.1f MPa, max displacement %.3g mm.",
-		res.ElementCount, res.PeakVonMisesMPa, res.MaxDisplacement))
+	e.reportStatus(res.Summary())
 }
 
 // reportStatus surfaces a study's outcome on the host status bar (best-effort: a status

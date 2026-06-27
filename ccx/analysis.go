@@ -75,11 +75,20 @@ type StudySettings struct {
 
 	YoungGPa    float64  // material Young's modulus (GPa)
 	Poisson     float64  // material Poisson's ratio
-	DensityGCm3 float64  // material density (g/cm^3); used by gravity loads
+	DensityGCm3 float64  // material density (g/cm^3); used by gravity and frequency
 	LoadType    LoadType // how the loaded faces are loaded
 	LoadN       float64  // total force on the loaded faces (N), in -Z, for LoadForce
 	PressureMPa float64  // pressure on the loaded faces (MPa) for LoadPressure
 	GravityG    float64  // gravity as a multiple of standard g for LoadGravity
+	Eigenmodes  int      // number of modes/factors for frequency and buckling analyses
+}
+
+// eigenmodeCount returns the requested number of modes, clamped to a sensible minimum.
+func (s StudySettings) eigenmodeCount() int {
+	if s.Eigenmodes < 1 {
+		return 6
+	}
+	return s.Eigenmodes
 }
 
 // defaultSettings returns the v1 defaults: linear-static, quadratic tets, auto sizing,
@@ -97,6 +106,7 @@ func defaultSettings() StudySettings {
 		LoadN:        100,
 		PressureMPa:  1,
 		GravityG:     1,
+		Eigenmodes:   6,
 	}
 }
 

@@ -48,18 +48,22 @@ type GravityLoad struct {
 // AnalysisModel is one fully-resolved study ready to be written as a CalculiX deck: the
 // solid mesh, the material, and the loads/boundary conditions, in CalculiX units.
 type AnalysisModel struct {
-	Analysis  AnalysisType
-	Mesh      *TetMesh
-	Material  MaterialProps
-	Fixed     []FixedConstraint
-	Forces    []ForceLoad
-	Pressures []PressureLoad
-	Gravity   *GravityLoad
+	Analysis       AnalysisType
+	Mesh           *TetMesh
+	Material       MaterialProps
+	Fixed          []FixedConstraint
+	Forces         []ForceLoad
+	Pressures      []PressureLoad
+	Gravity        *GravityLoad
+	EigenmodeCount int // number of modes/factors for *FREQUENCY / *BUCKLE
 }
 
-// needsDensity reports whether any body load requires *DENSITY to be written. A static
-// study with only nodal/pressure surface loads does not; a gravity body load does.
-func (m *AnalysisModel) needsDensity() bool { return m.Gravity != nil }
+// needsDensity reports whether *DENSITY must be written. A gravity body load needs it for
+// the body force; a frequency analysis needs it for the mass matrix. A static stress study
+// with only surface loads, and a buckling analysis (a static eigenproblem), do not.
+func (m *AnalysisModel) needsDensity() bool {
+	return m.Gravity != nil || m.Analysis == AnalysisFrequency
+}
 
 // loadDirection returns the model's load direction for the visual aids, defaulting to -Z.
 func loadDirection(m *AnalysisModel) [3]float64 {
