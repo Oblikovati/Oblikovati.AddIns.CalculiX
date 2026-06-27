@@ -30,6 +30,12 @@ func constraintWriters(m *AnalysisModel) []ConstraintWriter {
 	if m.Thermal != nil {
 		cs = append(cs, thermalWriter{c: m.Thermal})
 	}
+	for i := range m.Temperatures {
+		cs = append(cs, temperatureWriter{c: &m.Temperatures[i]})
+	}
+	for i := range m.HeatFluxes {
+		cs = append(cs, heatFluxWriter{c: &m.HeatFluxes[i]})
+	}
 	return cs
 }
 

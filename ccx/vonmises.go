@@ -43,3 +43,17 @@ func peak(field map[int]float64) float64 {
 	}
 	return max
 }
+
+// minMaxField returns the minimum and maximum values of a per-node scalar field.
+func minMaxField(field map[int]float64) (float64, float64) {
+	first := true
+	var lo, hi float64
+	for _, v := range field {
+		if first {
+			lo, hi, first = v, v, false
+			continue
+		}
+		lo, hi = math.Min(lo, v), math.Max(hi, v)
+	}
+	return lo, hi
+}

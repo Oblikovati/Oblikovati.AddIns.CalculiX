@@ -12,24 +12,32 @@ import (
 // StudyResult summarizes one FEA run. Static studies report stress/displacement; modal
 // and buckling studies report their eigenvalues (Modes) with a kind and unit.
 type StudyResult struct {
-	FrdPath          string    // the ccx .frd result file
-	NodeCount        int       // mesh node count
-	ElementCount     int       // mesh tet-element count
-	PeakVonMisesMPa  float64   // maximum nodal von Mises stress (static)
-	MaxDisplacement  float64   // maximum nodal displacement magnitude (mm, static)
-	Modes            []float64 // natural frequencies (Hz) or buckling factors
-	ModeKind         string    // "natural frequencies" / "buckling factors"
-	ModeUnit         string    // "Hz" / "x load"
-	GraphicsClientID string    // the client-graphics group the result was pushed under
+	FrdPath          string      // the ccx .frd result file
+	NodeCount        int         // mesh node count
+	ElementCount     int         // mesh tet-element count
+	PeakVonMisesMPa  float64     // maximum nodal von Mises stress (static)
+	MaxDisplacement  float64     // maximum nodal displacement magnitude (mm, static)
+	Modes            []float64   // natural frequencies (Hz) or buckling factors
+	ModeKind         string      // "natural frequencies" / "buckling factors"
+	ModeUnit         string      // "Hz" / "x load"
+	Heat             *HeatResult // set for a heat-transfer study
+	GraphicsClientID string      // the client-graphics group the result was pushed under
 }
+
+// HeatResult is the temperature range of a heat-transfer study.
+type HeatResult struct{ MinK, MaxK float64 }
 
 // Summary renders the one-line status message for the run, formatted for the analysis type.
 func (r *StudyResult) Summary() string {
-	if len(r.Modes) > 0 {
+	switch {
+	case r.Heat != nil:
+		return fmt.Sprintf("CalculiX: %d elements, temperature %.4g..%.4g K", r.ElementCount, r.Heat.MinK, r.Heat.MaxK)
+	case len(r.Modes) > 0:
 		return fmt.Sprintf("CalculiX: %d elements, %s: %s", r.ElementCount, r.ModeKind, formatModes(r.Modes, r.ModeUnit))
+	default:
+		return fmt.Sprintf("CalculiX: %d elements, peak von Mises %.1f MPa, max displacement %.3g mm.",
+			r.ElementCount, r.PeakVonMisesMPa, r.MaxDisplacement)
 	}
-	return fmt.Sprintf("CalculiX: %d elements, peak von Mises %.1f MPa, max displacement %.3g mm.",
-		r.ElementCount, r.PeakVonMisesMPa, r.MaxDisplacement)
 }
 
 // formatModes joins the first few mode values with their unit for the status bar.
@@ -93,10 +101,19 @@ func (e *Engine) runStudy(bins solverBinaries, settings StudySettings, faces []s
 	if err != nil {
 		return nil, err
 	}
-	if model.Analysis == AnalysisFrequency || model.Analysis == AnalysisBuckling {
+	return e.collectResults(stem, mesh, groups, faces, model)
+}
+
+// collectResults reads and renders the analysis-appropriate result fields.
+func (e *Engine) collectResults(stem string, mesh *TetMesh, groups *FaceGroups, faces []string, model *AnalysisModel) (*StudyResult, error) {
+	switch model.Analysis {
+	case AnalysisFrequency, AnalysisBuckling:
 		return e.collectModal(stem, mesh, groups, faces, model)
+	case AnalysisHeatTransfer:
+		return e.collectHeat(stem, mesh, groups, faces, model)
+	default:
+		return e.collectStatic(stem, mesh, groups, faces, model)
 	}
-	return e.collectStatic(stem, mesh, groups, faces, model)
 }
 
 // selectedFaces returns the picked faces' raw reference keys (decoded from the host's
@@ -119,10 +136,14 @@ func (e *Engine) selectedFaces(settings StudySettings) ([]string, error) {
 // needs only the support (no loaded face); a static or buckling study needs the support plus
 // the load faces.
 func facesNeeded(s StudySettings) int {
-	if s.Analysis == AnalysisFrequency || s.Analysis == AnalysisThermomech {
-		return 1
+	switch s.Analysis {
+	case AnalysisFrequency, AnalysisThermomech:
+		return 1 // support / body field only
+	case AnalysisHeatTransfer:
+		return 2 // a prescribed-temperature face and a heat-flux face
+	default:
+		return minFaces(s.LoadType)
 	}
-	return minFaces(s.LoadType)
 }
 
 // meshActiveBody pulls and welds the active body's surface and volume-meshes it.
@@ -184,6 +205,34 @@ func (e *Engine) collectModal(stem string, mesh *TetMesh, groups *FaceGroups, fa
 	}, nil
 }
 
+// collectHeat reads the steady-state nodal temperature field from the .frd, paints it as a
+// flood plot plus the thermal-BC aids, and returns the temperature range.
+func (e *Engine) collectHeat(stem string, mesh *TetMesh, groups *FaceGroups, faces []string, model *AnalysisModel) (*StudyResult, error) {
+	f, err := os.Open(stem + ".frd")
+	if err != nil {
+		return nil, fmt.Errorf("open frd: %w", err)
+	}
+	defer f.Close()
+	temps, err := parseNodalTemperatures(f)
+	if err != nil {
+		return nil, err
+	}
+	if err := e.renderTemperature(mesh, temps); err != nil {
+		return nil, fmt.Errorf("render temperature: %w", err)
+	}
+	if err := e.renderConstraints(mesh, groups, faces, model); err != nil {
+		return nil, fmt.Errorf("render constraints: %w", err)
+	}
+	lo, hi := minMaxField(temps)
+	return &StudyResult{
+		FrdPath:          stem + ".frd",
+		NodeCount:        len(mesh.Nodes),
+		ElementCount:     len(mesh.Elements),
+		Heat:             &HeatResult{MinK: lo, MaxK: hi},
+		GraphicsClientID: resultClientID,
+	}, nil
+}
+
 // readEigenvalues parses the analysis-appropriate eigenvalue table and returns the values
 // with a human-readable kind and unit.
 func readEigenvalues(datPath string, a AnalysisType) ([]float64, string, string, error) {
@@ -200,17 +249,21 @@ func readEigenvalues(datPath string, a AnalysisType) ([]float64, string, string,
 	return freqs, "natural frequencies", "Hz", err
 }
 
-// buildModel assembles the analysis model from the settings, mesh, and face bindings: the
-// first selected face is fully fixed; the load (force/pressure/gravity) is applied per the
-// settings to the remaining faces (or, for gravity, to the whole body).
+// buildModel assembles the analysis model from the settings, mesh, and face bindings. A
+// mechanical/thermal-stress study fixes the first face and loads the rest; a heat-transfer
+// study instead prescribes a temperature on the first face and a heat flux on the rest.
 func buildModel(settings StudySettings, mesh *TetMesh, groups *FaceGroups, faces []string) *AnalysisModel {
 	m := &AnalysisModel{
 		Analysis:       settings.Analysis,
 		Mesh:           mesh,
 		Material:       settings.material(),
-		Fixed:          []FixedConstraint{{Name: "FIX", Nodes: groups.Nodes[faces[0]], DOFLow: 1, DOFHigh: 3}},
 		EigenmodeCount: settings.eigenmodeCount(),
 	}
+	if settings.Analysis == AnalysisHeatTransfer {
+		applyThermalBCs(m, settings, groups, faces)
+		return m
+	}
+	m.Fixed = []FixedConstraint{{Name: "FIX", Nodes: groups.Nodes[faces[0]], DOFLow: 1, DOFHigh: 3}}
 	switch settings.Analysis {
 	case AnalysisFrequency:
 		// A modal (free-vibration) analysis applies no load.
@@ -221,6 +274,17 @@ func buildModel(settings StudySettings, mesh *TetMesh, groups *FaceGroups, faces
 		applyLoad(m, settings, groups, faces[1:])
 	}
 	return m
+}
+
+// applyThermalBCs sets a heat-transfer model's boundary conditions: a prescribed
+// temperature on the first selected face and a surface heat flux on the rest.
+func applyThermalBCs(m *AnalysisModel, settings StudySettings, groups *FaceGroups, faces []string) {
+	m.Temperatures = []TemperatureBC{{Name: "TEMP", Nodes: groups.Nodes[faces[0]], TempK: settings.ColdTempK}}
+	var ef []ElemFace
+	for _, key := range faces[1:] {
+		ef = append(ef, groups.ElemFaces[key]...)
+	}
+	m.HeatFluxes = []HeatFlux{{Name: "FLUX", Faces: ef, Flux: settings.HeatFluxQ}}
 }
 
 // applyLoad attaches the configured load to the model.

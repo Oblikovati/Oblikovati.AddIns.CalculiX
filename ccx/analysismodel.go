@@ -11,6 +11,23 @@ type MaterialProps struct {
 	Poisson         float64 // *ELASTIC Poisson's ratio
 	DensityTonneMM3 float64 // *DENSITY (t/mm^3); only emitted when a body load needs it
 	ExpansionPerK   float64 // *EXPANSION thermal coefficient (1/K); used by thermal stress
+	Conductivity    float64 // *CONDUCTIVITY (consistent units); used by heat transfer
+}
+
+// TemperatureBC prescribes a fixed temperature on a node set (the temperature degree of
+// freedom 11) for a heat-transfer analysis.
+type TemperatureBC struct {
+	Name  string
+	Nodes []int
+	TempK float64
+}
+
+// HeatFlux applies a surface heat flux to a set of element-faces (*DFLUX Sn) for a
+// heat-transfer analysis.
+type HeatFlux struct {
+	Name  string
+	Faces []ElemFace
+	Flux  float64
 }
 
 // ThermalLoad applies a uniform temperature change over the whole body for an uncoupled
@@ -64,7 +81,9 @@ type AnalysisModel struct {
 	Pressures      []PressureLoad
 	Gravity        *GravityLoad
 	Thermal        *ThermalLoad
-	EigenmodeCount int // number of modes/factors for *FREQUENCY / *BUCKLE
+	Temperatures   []TemperatureBC // prescribed temperatures (heat transfer)
+	HeatFluxes     []HeatFlux      // surface heat fluxes (heat transfer)
+	EigenmodeCount int             // number of modes/factors for *FREQUENCY / *BUCKLE
 }
 
 // needsDensity reports whether *DENSITY must be written. A gravity body load needs it for

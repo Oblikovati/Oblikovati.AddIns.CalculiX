@@ -2,20 +2,28 @@
 
 package ccx
 
-// writeMaterial emits the *MATERIAL block: linear-elastic constants always, density only
-// when a body load needs it, and the thermal expansion coefficient only for a thermal
-// study (kept out of other analyses to avoid unused-property notes from the solver).
-func writeMaterial(d *deckBuf, m MaterialProps, withDensity, withExpansion bool) {
-	d.line("*MATERIAL, NAME=%s", m.Name)
-	d.line("*ELASTIC")
-	d.line("%.10g, %.10g", m.YoungMPa, m.Poisson)
-	if withDensity {
-		d.line("*DENSITY")
-		d.line("%.10g", m.DensityTonneMM3)
+// writeMaterial emits the *MATERIAL block, including only the properties the analysis
+// needs: elastic constants for the mechanical analyses, density for a body load or modal
+// study, expansion for thermal stress, and conductivity for heat transfer. Unneeded
+// properties are omitted to avoid unused-property notes from the solver.
+func writeMaterial(d *deckBuf, m *AnalysisModel) {
+	mat := m.Material
+	d.line("*MATERIAL, NAME=%s", mat.Name)
+	if m.Analysis != AnalysisHeatTransfer {
+		d.line("*ELASTIC")
+		d.line("%.10g, %.10g", mat.YoungMPa, mat.Poisson)
 	}
-	if withExpansion {
+	if m.needsDensity() {
+		d.line("*DENSITY")
+		d.line("%.10g", mat.DensityTonneMM3)
+	}
+	if m.Thermal != nil {
 		d.line("*EXPANSION, ZERO=0.")
-		d.line("%.10g", m.ExpansionPerK)
+		d.line("%.10g", mat.ExpansionPerK)
+	}
+	if m.Analysis == AnalysisHeatTransfer {
+		d.line("*CONDUCTIVITY")
+		d.line("%.10g", mat.Conductivity)
 	}
 }
 
