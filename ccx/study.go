@@ -25,6 +25,7 @@ type StudyResult struct {
 	ModeKind         string             // "natural frequencies" / "buckling factors"
 	ModeUnit         string             // "Hz" / "x load"
 	Scalar           *ScalarFieldResult // set for a DOF-11 field study (heat / electrostatic)
+	ReactionN        float64            // total support reaction magnitude (N, static); 0 when absent
 	GraphicsClientID string             // the client-graphics group the result was pushed under
 }
 
@@ -47,9 +48,17 @@ func (r *StudyResult) Summary() string {
 	case len(r.Modes) > 0:
 		return fmt.Sprintf("CalculiX: %d elements, %s: %s", r.ElementCount, r.ModeKind, formatModes(r.Modes, r.ModeUnit))
 	default:
-		return fmt.Sprintf("CalculiX: %d elements, peak %s %.3g %s, max displacement %.3g mm.",
-			r.ElementCount, r.FieldLabel, r.FieldPeak, r.FieldUnit, r.MaxDisplacement)
+		return fmt.Sprintf("CalculiX: %d elements, peak %s %.3g %s, max displacement %.3g mm%s.",
+			r.ElementCount, r.FieldLabel, r.FieldPeak, r.FieldUnit, r.MaxDisplacement, r.reactionSuffix())
 	}
+}
+
+// reactionSuffix appends the total support reaction to the static status line when one was read.
+func (r *StudyResult) reactionSuffix() string {
+	if r.ReactionN <= 0 {
+		return ""
+	}
+	return fmt.Sprintf(", support reaction %.3g N", r.ReactionN)
 }
 
 // formatModes joins the first few mode values with their unit for the status bar.
@@ -221,8 +230,25 @@ func (e *Engine) collectStatic(stem string, mesh *TetMesh, groups *FaceGroups, f
 		FieldPeak:        fieldPeak,
 		FieldUnit:        unit,
 		MaxDisplacement:  peak(dispMagnitude(res)),
+		ReactionN:        readReaction(stem + ".dat"),
 		GraphicsClientID: resultClientID,
 	}, nil
+}
+
+// readReaction returns the total support-reaction magnitude from the .dat file, or 0 when the
+// deck requested none (e.g. an elastic-support study) or the block is absent — the reaction is a
+// supplementary report, never a hard failure of an otherwise-solved study.
+func readReaction(datPath string) float64 {
+	f, err := os.Open(datPath)
+	if err != nil {
+		return 0
+	}
+	defer f.Close()
+	v, err := parseTotalReaction(f)
+	if err != nil {
+		return 0
+	}
+	return reactionMagnitude(v)
 }
 
 // collectModal reads the eigenvalues (natural frequencies or buckling factors) from the
