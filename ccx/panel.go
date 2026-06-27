@@ -94,6 +94,8 @@ func materialSection(s StudySettings) []wire.PanelControlSpec {
 		client.PanelTextBox("neo_c10", "Neo-Hookean C10 (MPa, rubber)", formatNum(s.NeoHookeC10)),
 		client.PanelTextBox("neo_d1", "Neo-Hookean D1 (1/MPa, rubber)", formatNum(s.NeoHookeD1)),
 		client.PanelTextBox("young", "Young's modulus (GPa)", formatNum(s.YoungGPa)),
+		client.PanelTextBox("young_hot", "Young's modulus at hot temp (GPa, 0=const)", formatNum(s.YoungHotGPa)),
+		client.PanelTextBox("hot_temp", "Hot temperature (K) for E(T)", formatNum(s.HotTempK)),
 		client.PanelTextBox("poisson", "Poisson's ratio", formatNum(s.Poisson)),
 		client.PanelTextBox("yield", "Yield stress (MPa, 0=elastic)", formatNum(s.YieldMPa)),
 		client.PanelTextBox("density", "Density (g/cm³)", formatNum(s.DensityGCm3)),
@@ -228,6 +230,10 @@ func (e *Engine) applyMaterialEdit(controlID, value string) bool {
 	switch controlID {
 	case "young":
 		e.settings.YoungGPa = panelNum(value, e.settings.YoungGPa)
+	case "young_hot":
+		e.settings.YoungHotGPa = panelNum(value, e.settings.YoungHotGPa)
+	case "hot_temp":
+		e.settings.HotTempK = panelNum(value, e.settings.HotTempK)
 	case "poisson":
 		e.settings.Poisson = panelNum(value, e.settings.Poisson)
 	case "yield":
