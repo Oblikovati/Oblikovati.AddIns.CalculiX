@@ -251,6 +251,10 @@ type StudySettings struct {
 
 	YoungHotGPa float64 // Young's modulus (GPa) at HotTempK; >0 builds a temperature-dependent E(T) table
 	HotTempK    float64 // upper table temperature (K) at which YoungHotGPa applies
+
+	// Constraints is the explicit list of study constraints the panel builder adds. When empty,
+	// the mechanical model is synthesized from the implicit convention (see defaultConstraints).
+	Constraints []ConstraintSpec
 }
 
 // eigenmodeCount returns the requested number of modes, clamped to a sensible minimum.
