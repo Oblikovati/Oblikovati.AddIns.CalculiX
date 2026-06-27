@@ -115,20 +115,16 @@ jobs:
   # uniaxial deck exactly, and gmsh tetrahedralizes a box STL. This is the self-contained,
   # no-external-dependency toolchain the add-in ships and runs as subprocesses
   # (vendor-src/{ccx,gmsh}/NOTICE.md).
+  # Linux is the gating platform for the from-source solver build. The macOS/Windows
+  # SHIPPED add-in (the cgo c-shared library) is still validated by the `build` job on
+  # all three OSes; building the vendored solver SOURCE on macOS (its Homebrew Fortran/C++
+  # toolchain) is a follow-up.
   solvers:
-    strategy:
-      fail-fast: false
-      matrix:
-        os: [ubuntu-latest, macos-latest]
-    runs-on: ${{ matrix.os }}
+    runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v5
-      - name: Install build toolchain (Linux)
-        if: runner.os == 'Linux'
+      - name: Install build toolchain
         run: sudo apt-get update && sudo apt-get install -y gfortran cmake
-      - name: Install build toolchain (macOS)
-        if: runner.os == 'macOS'
-        run: brew install gcc cmake
       - name: Build vendored ccx + gmsh
         run: make build-solvers
       - name: Validate ccx solves the uniaxial deck (u_x must equal 1.0E-03)
@@ -151,7 +147,7 @@ jobs:
           [ "$tets" -ge 1 ] || { echo "FAIL: gmsh produced no tets"; exit 1; }
       - uses: actions/upload-artifact@v6
         with:
-          name: solvers-${{ matrix.os }}
+          name: solvers-linux
           path: |
             vendor-src/ccx/build/ccx
             vendor-src/gmsh/build/gmsh

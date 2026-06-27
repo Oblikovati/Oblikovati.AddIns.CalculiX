@@ -17,6 +17,9 @@ set -euo pipefail
 HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 JOBS="${JOBS:-$( (nproc 2>/dev/null || sysctl -n hw.ncpu 2>/dev/null) || echo 4)}"
 CC="${CC:-cc}"
+# Resolve a Fortran compiler. Homebrew's gcc installs `gfortran-14` (no bare `gfortran`
+# symlink), so fall back to the versioned names before giving up.
+FC="${FC:-$(command -v gfortran gfortran-14 gfortran-13 gfortran-12 gfortran-11 2>/dev/null | head -1)}"
 FC="${FC:-gfortran}"
 OUT="$HERE/build"
 mkdir -p "$OUT"
