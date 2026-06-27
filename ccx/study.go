@@ -7,6 +7,8 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+
+	"oblikovati.org/api/wire"
 )
 
 // StudyResult summarizes one FEA run. Static studies report stress/displacement; modal
@@ -64,9 +66,6 @@ func formatModes(modes []float64, unit string) string {
 	return strings.Join(parts, ", ")
 }
 
-// studyBodyIndex is the body the v1 study analyses (the active part's first body).
-const studyBodyIndex = 0
-
 // RunStudyOnHost is the end-to-end add-in flow for the active part: read the selected
 // faces, pull and weld the surface, volume-mesh it with gmsh, bind the picked faces to
 // mesh node sets, write the CalculiX deck, solve, parse the .frd, and render the von
@@ -95,16 +94,8 @@ func (e *Engine) runStudy(bins solverBinaries, settings StudySettings, faces []s
 	if err != nil {
 		return nil, fmt.Errorf("study workdir: %w", err)
 	}
-	mesh, err := e.meshActiveBody(bins, settings, dir)
+	mesh, groups, model, err := e.prepareStudy(bins, settings, faces, dir)
 	if err != nil {
-		return nil, err
-	}
-	groups, err := e.buildFaceGroups(studyBodyIndex, faces, mesh)
-	if err != nil {
-		return nil, err
-	}
-	model := buildModel(settings, mesh, groups, faces)
-	if err := checkPrerequisites(model); err != nil {
 		return nil, err
 	}
 	stem, err := runDeck(bins, model, dir)
@@ -112,6 +103,33 @@ func (e *Engine) runStudy(bins solverBinaries, settings StudySettings, faces []s
 		return nil, err
 	}
 	return e.collectResults(stem, mesh, groups, faces, model)
+}
+
+// prepareStudy resolves the active part into a solved-ready model: enumerate the solid
+// bodies, mesh and merge them, bind the picked faces, resolve each body's material, and
+// assemble + validate the analysis model.
+func (e *Engine) prepareStudy(bins solverBinaries, settings StudySettings, faces []string, dir string) (*TetMesh, *FaceGroups, *AnalysisModel, error) {
+	solids, err := e.solidBodies()
+	if err != nil {
+		return nil, nil, nil, err
+	}
+	mesh, err := e.meshSolidBodies(bins, settings, solids, dir)
+	if err != nil {
+		return nil, nil, nil, err
+	}
+	groups, err := e.buildFaceGroups(faces, mesh, solids)
+	if err != nil {
+		return nil, nil, nil, err
+	}
+	materials, err := e.resolveBodyMaterials(settings, solids)
+	if err != nil {
+		return nil, nil, nil, err
+	}
+	model := buildModel(settings, mesh, groups, faces, materials)
+	if err := checkPrerequisites(model); err != nil {
+		return nil, nil, nil, err
+	}
+	return mesh, groups, model, nil
 }
 
 // collectResults reads and renders the analysis-appropriate result fields.
@@ -160,14 +178,19 @@ func facesNeeded(s StudySettings) int {
 	}
 }
 
-// meshActiveBody pulls and welds the active body's surface and volume-meshes it.
-func (e *Engine) meshActiveBody(bins solverBinaries, settings StudySettings, dir string) (*TetMesh, error) {
-	surface, err := e.pullSurface(studyBodyIndex)
-	if err != nil {
-		return nil, err
+// resolveBodyMaterials returns the CalculiX material for each solid body (index-aligned to
+// solids): the host's assigned material, or the panel material when a body has none.
+func (e *Engine) resolveBodyMaterials(settings StudySettings, solids []wire.BodyInfo) ([]MaterialProps, error) {
+	fallback := settings.material()
+	out := make([]MaterialProps, len(solids))
+	for i, b := range solids {
+		mat, err := e.bodyMaterial(b, fallback)
+		if err != nil {
+			return nil, err
+		}
+		out[i] = mat
 	}
-	opts := MeshOptions{SizeMM: settings.MeshSizeMM, Order: settings.ElementOrder}
-	return NewGmshMesher(bins.gmsh).Mesh(surface, opts, dir)
+	return out, nil
 }
 
 // collectStatic parses the static .frd, paints the von Mises field plus the support/load
@@ -267,14 +290,17 @@ func readEigenvalues(datPath string, a AnalysisType) ([]float64, string, string,
 	return freqs, "natural frequencies", "Hz", err
 }
 
-// buildModel assembles the analysis model from the settings, mesh, and face bindings. A
-// mechanical/thermal-stress study fixes the first face and loads the rest; a heat-transfer
-// study instead prescribes a temperature on the first face and a heat flux on the rest.
-func buildModel(settings StudySettings, mesh *TetMesh, groups *FaceGroups, faces []string) *AnalysisModel {
+// buildModel assembles the analysis model from the settings, mesh, per-body materials, and
+// face bindings. A mechanical/thermal-stress study fixes the first face and loads the rest; a
+// heat-transfer study instead prescribes a temperature on the first face and a heat flux on
+// the rest. Each body's elements form a material section, so a part of mixed materials writes
+// one *MATERIAL + *SOLID SECTION per material.
+func buildModel(settings StudySettings, mesh *TetMesh, groups *FaceGroups, faces []string, materials []MaterialProps) *AnalysisModel {
 	m := &AnalysisModel{
 		Analysis:       settings.Analysis,
 		Mesh:           mesh,
-		Material:       settings.material(),
+		Material:       materials[0],
+		Sections:       buildSections(mesh, materials),
 		EigenmodeCount: settings.eigenmodeCount(),
 		ResultField:    settings.ResultField,
 	}
@@ -297,6 +323,30 @@ func buildModel(settings StudySettings, mesh *TetMesh, groups *FaceGroups, faces
 		applyLoad(m, settings, groups, faces[1:])
 	}
 	return m
+}
+
+// buildSections groups the merged mesh's elements by their source body into per-body
+// material sections (ELSET "Eb0", "Eb1", …), so each body is assigned its own material. A
+// single-body part yields one section; bodies sharing a material are deduplicated into one
+// *MATERIAL at deck-write time.
+func buildSections(mesh *TetMesh, materials []MaterialProps) []MaterialSection {
+	byBody := map[int][]int{}
+	for _, el := range mesh.Elements {
+		byBody[el.Body] = append(byBody[el.Body], el.ID)
+	}
+	var sections []MaterialSection
+	for body := 0; body < len(materials); body++ {
+		ids := byBody[body]
+		if len(ids) == 0 {
+			continue
+		}
+		sections = append(sections, MaterialSection{
+			ElsetName:  fmt.Sprintf("Eb%d", body),
+			Material:   materials[body],
+			ElementIDs: ids,
+		})
+	}
+	return sections
 }
 
 // applyThermalBCs sets a heat-transfer model's boundary conditions: a prescribed

@@ -43,6 +43,12 @@ func (b *boxHost) Call(method string, req []byte) ([]byte, error) {
 	b.calls[method]++
 	b.mu.Unlock()
 	switch method {
+	case wire.MethodBodyList:
+		// One solid body, index 0, with no assigned material (the study falls back to the
+		// panel material). A reference key is required so face binding can probe by body.
+		return json.Marshal(wire.BodyListResult{Bodies: []wire.BodyInfo{
+			{Index: 0, Name: "Solid1", Solid: true, Key: "body0"},
+		}})
 	case wire.MethodModelSelection:
 		// The host encodes a selected face as "face/<url-base64 of the raw key>".
 		refs := []string{encodeFaceRef(fixedFaceKey), encodeFaceRef(loadedFaceKey)}

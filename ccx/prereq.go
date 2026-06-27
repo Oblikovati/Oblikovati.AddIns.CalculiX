@@ -35,8 +35,10 @@ func checkPrerequisites(m *AnalysisModel) error {
 // checkHeatPrerequisites validates a heat-transfer model: it needs conductivity, a
 // prescribed-temperature face, and a heat source (flux).
 func checkHeatPrerequisites(m *AnalysisModel) error {
-	if m.Material.Conductivity <= 0 {
-		return errors.New("a heat-transfer study needs a positive thermal conductivity")
+	for _, mat := range m.distinctMaterials() {
+		if mat.Conductivity <= 0 {
+			return fmt.Errorf("material %q: a heat-transfer study needs a positive thermal conductivity", mat.Name)
+		}
 	}
 	if !hasTemperatureBC(m) {
 		return errors.New("the temperature face resolved to no mesh nodes — pick a face of the part")
@@ -51,8 +53,10 @@ func checkHeatPrerequisites(m *AnalysisModel) error {
 // positive electrical conductivity, a prescribed-potential face that resolved to nodes, and
 // a non-zero potential difference to drive a current (otherwise the field is uniformly zero).
 func checkElectrostaticPrerequisites(m *AnalysisModel) error {
-	if m.Material.ElectricalSigma <= 0 {
-		return errors.New("an electrostatic study needs a positive electrical conductivity")
+	for _, mat := range m.distinctMaterials() {
+		if mat.ElectricalSigma <= 0 {
+			return fmt.Errorf("material %q: an electrostatic study needs a positive electrical conductivity", mat.Name)
+		}
 	}
 	if !hasTemperatureBC(m) {
 		return errors.New("the potential face resolved to no mesh nodes — pick a face of the part")
@@ -95,19 +99,30 @@ func hasHeatSource(m *AnalysisModel) bool {
 }
 
 // checkMaterial validates the elastic constants and the extra properties a body/thermal
-// load requires.
+// load requires, for every material in the model (a multi-body part has one per body).
 func checkMaterial(m *AnalysisModel) error {
-	if m.Material.YoungMPa <= 0 {
-		return errors.New("set a positive Young's modulus")
+	for _, mat := range m.distinctMaterials() {
+		if err := checkMaterialProps(mat, m.Gravity != nil, m.Thermal != nil); err != nil {
+			return err
+		}
 	}
-	if m.Material.Poisson <= -1 || m.Material.Poisson >= 0.5 {
-		return fmt.Errorf("the Poisson's ratio %.3g is outside the valid range (-1, 0.5)", m.Material.Poisson)
+	return nil
+}
+
+// checkMaterialProps validates one material's elastic constants plus the density/expansion a
+// gravity or thermal study needs.
+func checkMaterialProps(mat MaterialProps, gravity, thermal bool) error {
+	if mat.YoungMPa <= 0 {
+		return fmt.Errorf("material %q: set a positive Young's modulus", mat.Name)
 	}
-	if m.Gravity != nil && m.Material.DensityTonneMM3 <= 0 {
-		return errors.New("a gravity load needs a positive material density")
+	if mat.Poisson <= -1 || mat.Poisson >= 0.5 {
+		return fmt.Errorf("material %q: the Poisson's ratio %.3g is outside the valid range (-1, 0.5)", mat.Name, mat.Poisson)
 	}
-	if m.Thermal != nil && m.Material.ExpansionPerK <= 0 {
-		return errors.New("a thermal study needs a positive thermal expansion coefficient")
+	if gravity && mat.DensityTonneMM3 <= 0 {
+		return fmt.Errorf("material %q: a gravity load needs a positive material density", mat.Name)
+	}
+	if thermal && mat.ExpansionPerK <= 0 {
+		return fmt.Errorf("material %q: a thermal study needs a positive thermal expansion coefficient", mat.Name)
 	}
 	return nil
 }

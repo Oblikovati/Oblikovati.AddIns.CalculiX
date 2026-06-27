@@ -71,12 +71,23 @@ type GravityLoad struct {
 	Dir   [3]float64 // unit direction (e.g. {0,0,-1} for downward)
 }
 
+// MaterialSection assigns one material to an element set — a *SOLID SECTION over an *ELSET.
+// A single-material study has one section over every element; a multi-body study has one per
+// body (its element ids), so a part of mixed materials writes one *MATERIAL + *SOLID SECTION
+// per distinct material (CalculiX's per-material ELSET idiom).
+type MaterialSection struct {
+	ElsetName  string        // *ELSET / *SOLID SECTION set name (e.g. "Eb0")
+	Material   MaterialProps // the material assigned to this set
+	ElementIDs []int         // ids of the elements in the set
+}
+
 // AnalysisModel is one fully-resolved study ready to be written as a CalculiX deck: the
-// solid mesh, the material, and the loads/boundary conditions, in CalculiX units.
+// solid mesh, the material(s), and the loads/boundary conditions, in CalculiX units.
 type AnalysisModel struct {
 	Analysis       AnalysisType
 	Mesh           *TetMesh
-	Material       MaterialProps
+	Material       MaterialProps     // the (first/only) material; see Sections for multi-material
+	Sections       []MaterialSection // per-body material sections; empty ⇒ single Material over all elements
 	Fixed          []FixedConstraint
 	Forces         []ForceLoad
 	Pressures      []PressureLoad
@@ -86,6 +97,35 @@ type AnalysisModel struct {
 	HeatFluxes     []HeatFlux      // surface heat fluxes (heat transfer)
 	EigenmodeCount int             // number of modes/factors for *FREQUENCY / *BUCKLE
 	ResultField    ResultFieldKind // which scalar field a stress result is coloured by
+}
+
+// sections returns the model's material sections, deriving a single section over every
+// element from Material when none are set explicitly. This keeps the single-material path
+// (and every test that sets only Material) writing exactly one *ELSET/*MATERIAL/*SOLID
+// SECTION, while multi-body studies populate Sections directly.
+func (m *AnalysisModel) sections() []MaterialSection {
+	if len(m.Sections) > 0 {
+		return m.Sections
+	}
+	ids := make([]int, len(m.Mesh.Elements))
+	for i, e := range m.Mesh.Elements {
+		ids[i] = e.ID
+	}
+	return []MaterialSection{{ElsetName: allElementsSet, Material: m.Material, ElementIDs: ids}}
+}
+
+// distinctMaterials returns the model's materials deduplicated by name, preserving first
+// occurrence order, so a part with several bodies sharing a material writes one *MATERIAL.
+func (m *AnalysisModel) distinctMaterials() []MaterialProps {
+	seen := map[string]bool{}
+	var out []MaterialProps
+	for _, s := range m.sections() {
+		if !seen[s.Material.Name] {
+			seen[s.Material.Name] = true
+			out = append(out, s.Material)
+		}
+	}
+	return out
 }
 
 // needsDensity reports whether *DENSITY must be written. A gravity body load needs it for

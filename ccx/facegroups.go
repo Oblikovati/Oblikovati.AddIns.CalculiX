@@ -5,6 +5,8 @@ package ccx
 import (
 	"fmt"
 	"math"
+
+	"oblikovati.org/api/wire"
 )
 
 // FaceGroups binds each selected host face (by reference key) to the mesh entities on that
@@ -34,7 +36,7 @@ type faceAgg struct {
 // is matched to the gmsh group with the aligned normal and nearest centroid. This is
 // exact for the planar/prismatic faces of the v1 slice; a curved host face that gmsh
 // splits into several patches matches only its nearest patch (a documented follow-up).
-func (e *Engine) buildFaceGroups(bodyIndex int, faceKeys []string, mesh *TetMesh) (*FaceGroups, error) {
+func (e *Engine) buildFaceGroups(faceKeys []string, mesh *TetMesh, solids []wire.BodyInfo) (*FaceGroups, error) {
 	groups := groupBoundaryByFace(mesh)
 	faceIndex := faceElemIndex(mesh)
 	out := &FaceGroups{
@@ -42,7 +44,7 @@ func (e *Engine) buildFaceGroups(bodyIndex int, faceKeys []string, mesh *TetMesh
 		ElemFaces: make(map[string][]ElemFace, len(faceKeys)),
 	}
 	for _, key := range faceKeys {
-		host, err := e.pullFaceFacets(bodyIndex, key)
+		host, err := e.pullFaceOnAnyBody(key, solids)
 		if err != nil {
 			return nil, err
 		}
@@ -55,6 +57,22 @@ func (e *Engine) buildFaceGroups(bodyIndex int, faceKeys []string, mesh *TetMesh
 		out.ElemFaces[key] = resolveElemFaces(match.facets, faceIndex)
 	}
 	return out, nil
+}
+
+// pullFaceOnAnyBody fetches a face's triangulation by trying each solid body until the key
+// resolves — a selected face belongs to one body, but the selection ref carries no body
+// index, so the engine probes (the FaceCalculateFacets handler is body-scoped). The match is
+// cheap: a part has few bodies and a study few picked faces.
+func (e *Engine) pullFaceOnAnyBody(key string, solids []wire.BodyInfo) (*SurfaceMesh, error) {
+	var lastErr error
+	for _, b := range solids {
+		host, err := e.pullFaceFacets(b.Index, key)
+		if err == nil {
+			return host, nil
+		}
+		lastErr = err
+	}
+	return nil, fmt.Errorf("face %s not found on any of the %d solid bodies: %w", key, len(solids), lastErr)
 }
 
 // groupBoundaryByFace aggregates the mesh's boundary facets by their gmsh surface id.

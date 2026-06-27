@@ -40,10 +40,11 @@ func (d *deckBuf) flush() error {
 // registry, not an edit here.
 func WriteDeck(w io.Writer, m *AnalysisModel) error {
 	d := newDeckBuf(w)
+	sections := m.sections()
 	writeUnitsBanner(d)
-	writeMesh(d, m.Mesh)
-	writeMaterial(d, m)
-	writeSolidSection(d, m.Material.Name)
+	writeMesh(d, m.Mesh, sections)
+	writeMaterials(d, m)
+	writeSolidSections(d, sections)
 
 	cons := constraintWriters(m)
 	for _, c := range cons {
