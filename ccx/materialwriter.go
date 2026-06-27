@@ -57,6 +57,13 @@ func writeElastic(d *deckBuf, mat MaterialProps) {
 		d.line("%.10g, %.10g", h.C10, h.D1)
 		return
 	}
+	if len(mat.ElasticTable) > 0 {
+		d.line("*ELASTIC")
+		for _, p := range mat.ElasticTable {
+			d.line("%.10g, %.10g, %.10g", p.YoungMPa, p.Poisson, p.TempK)
+		}
+		return
+	}
 	if o := mat.Ortho; o != nil {
 		d.line("*ELASTIC, TYPE=ENGINEERING CONSTANTS")
 		d.line("%.10g, %.10g, %.10g, %.10g, %.10g, %.10g, %.10g, %.10g",

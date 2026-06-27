@@ -248,6 +248,9 @@ type StudySettings struct {
 	MaterialModel MaterialModel // constitutive law of the panel material (linear vs Neo-Hookean)
 	NeoHookeC10   float64       // Neo-Hookean C10 (MPa) = μ/2, for MaterialNeoHooke
 	NeoHookeD1    float64       // Neo-Hookean D1 (1/MPa) = 2/K compressibility, for MaterialNeoHooke
+
+	YoungHotGPa float64 // Young's modulus (GPa) at HotTempK; >0 builds a temperature-dependent E(T) table
+	HotTempK    float64 // upper table temperature (K) at which YoungHotGPa applies
 }
 
 // eigenmodeCount returns the requested number of modes, clamped to a sensible minimum.
@@ -316,6 +319,8 @@ func withInterfaceDefaults(s StudySettings) StudySettings {
 	s.MaterialModel = MaterialLinear
 	s.NeoHookeC10 = 1.0 // MPa; a soft rubber (μ ≈ 2 MPa), used when MaterialModel is Neo-Hookean
 	s.NeoHookeD1 = 0.1  // 1/MPa; bulk K = 20 MPa, moderately compressible to avoid tet locking
+	s.YoungHotGPa = 0   // 0 ⇒ temperature-independent elasticity (a single Young/Poisson)
+	s.HotTempK = 100
 	return s
 }
 
@@ -333,6 +338,20 @@ func (s StudySettings) material() MaterialProps {
 		SpecificHeat:    s.SpecificHeat,
 		YieldMPa:        s.YieldMPa,
 		Hyper:           s.neoHooke(),
+		ElasticTable:    s.elasticTable(),
+	}
+}
+
+// elasticTable returns a two-row temperature-dependent elastic table (Young/Poisson at the
+// reference temperature 0 and at HotTempK) when a hot modulus is set, else nil for a constant
+// modulus. It lets a heated part use the softened modulus the real material has at temperature.
+func (s StudySettings) elasticTable() []ElasticTempPoint {
+	if s.YoungHotGPa <= 0 {
+		return nil
+	}
+	return []ElasticTempPoint{
+		{YoungMPa: s.YoungGPa * gpaToMPa, Poisson: s.Poisson, TempK: 0},
+		{YoungMPa: s.YoungHotGPa * gpaToMPa, Poisson: s.Poisson, TempK: s.HotTempK},
 	}
 }
 
