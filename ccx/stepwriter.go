@@ -8,7 +8,13 @@ package ccx
 // *COUPLED TEMPERATURE-DISPLACEMENT for a coupled thermomechanical study (steady-state, or
 // transient with a "tinc, tper" time line). Unsupported types fall back to a static solve.
 func writeStepBegin(d *deckBuf, m *AnalysisModel) {
-	d.line("*STEP")
+	if m.hasHyperelastic() {
+		// Hyperelasticity is a large-deformation problem: NLGEOM turns on the geometrically
+		// nonlinear formulation for the whole step.
+		d.line("*STEP, NLGEOM")
+	} else {
+		d.line("*STEP")
+	}
 	switch m.Analysis {
 	case AnalysisFrequency:
 		d.line("*FREQUENCY")
@@ -32,7 +38,7 @@ func writeStepBegin(d *deckBuf, m *AnalysisModel) {
 // increment, as before).
 func writeStaticProcedure(d *deckBuf, m *AnalysisModel) {
 	d.line("*STATIC")
-	if m.hasContact() || m.hasPlasticity() {
+	if m.hasContact() || m.hasPlasticity() || m.hasHyperelastic() {
 		d.line("0.1, 1.0")
 	}
 }

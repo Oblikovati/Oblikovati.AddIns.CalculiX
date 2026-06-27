@@ -89,6 +89,9 @@ func contactModeLabel(contact bool) string {
 // materialSection builds the Material control group (the FreeCAD "Material" task box).
 func materialSection(s StudySettings) []wire.PanelControlSpec {
 	return section("Material",
+		client.PanelDropdown("material_model", "Material model", materialModelOptions(), string(materialModelOrDefault(s.MaterialModel))),
+		client.PanelTextBox("neo_c10", "Neo-Hookean C10 (MPa, rubber)", formatNum(s.NeoHookeC10)),
+		client.PanelTextBox("neo_d1", "Neo-Hookean D1 (1/MPa, rubber)", formatNum(s.NeoHookeD1)),
 		client.PanelTextBox("young", "Young's modulus (GPa)", formatNum(s.YoungGPa)),
 		client.PanelTextBox("poisson", "Poisson's ratio", formatNum(s.Poisson)),
 		client.PanelTextBox("yield", "Yield stress (MPa, 0=elastic)", formatNum(s.YieldMPa)),
@@ -98,6 +101,14 @@ func materialSection(s StudySettings) []wire.PanelControlSpec {
 		client.PanelTextBox("elec_sigma", "Electrical conductivity", formatNum(s.ElectricalSigma)),
 		client.PanelTextBox("specific_heat", "Specific heat (transient)", formatNum(s.SpecificHeat)),
 	)
+}
+
+// materialModelOrDefault treats the zero value as the default (linear elastic).
+func materialModelOrDefault(m MaterialModel) MaterialModel {
+	if m == "" {
+		return MaterialLinear
+	}
+	return m
 }
 
 // loadsSection builds the loads & boundary-conditions control group.
@@ -190,6 +201,9 @@ func (e *Engine) applyMaterialOrLoadEdit(controlID, value string) {
 
 // applyMaterialEdit handles the material-property controls, returning whether it matched.
 func (e *Engine) applyMaterialEdit(controlID, value string) bool {
+	if e.applyHyperelasticEdit(controlID, value) {
+		return true
+	}
 	switch controlID {
 	case "young":
 		e.settings.YoungGPa = panelNum(value, e.settings.YoungGPa)
@@ -199,6 +213,16 @@ func (e *Engine) applyMaterialEdit(controlID, value string) bool {
 		e.settings.YieldMPa = panelNum(value, e.settings.YieldMPa)
 	case "density":
 		e.settings.DensityGCm3 = panelNum(value, e.settings.DensityGCm3)
+	default:
+		return e.applyThermalMaterialEdit(controlID, value)
+	}
+	return true
+}
+
+// applyThermalMaterialEdit handles the thermal/electrical material-property controls, returning
+// whether it matched.
+func (e *Engine) applyThermalMaterialEdit(controlID, value string) bool {
+	switch controlID {
 	case "alpha":
 		e.settings.ThermalAlpha = panelNum(value, e.settings.ThermalAlpha)
 	case "conductivity":
@@ -207,6 +231,22 @@ func (e *Engine) applyMaterialEdit(controlID, value string) bool {
 		e.settings.ElectricalSigma = panelNum(value, e.settings.ElectricalSigma)
 	case "specific_heat":
 		e.settings.SpecificHeat = panelNum(value, e.settings.SpecificHeat)
+	default:
+		return false
+	}
+	return true
+}
+
+// applyHyperelasticEdit handles the material-model selector and the Neo-Hookean parameter
+// controls, returning whether it matched.
+func (e *Engine) applyHyperelasticEdit(controlID, value string) bool {
+	switch controlID {
+	case "material_model":
+		e.settings.MaterialModel = MaterialModel(strings.TrimSpace(value))
+	case "neo_c10":
+		e.settings.NeoHookeC10 = panelNum(value, e.settings.NeoHookeC10)
+	case "neo_d1":
+		e.settings.NeoHookeD1 = panelNum(value, e.settings.NeoHookeD1)
 	default:
 		return false
 	}

@@ -204,6 +204,12 @@ func checkMaterial(m *AnalysisModel) error {
 // checkMaterialProps validates one material's elastic constants plus the density/expansion a
 // body load (gravity, centrifugal) or thermal study needs.
 func checkMaterialProps(mat MaterialProps, bodyLoad, thermal bool) error {
+	if h := mat.Hyper; h != nil {
+		if h.C10 <= 0 || h.D1 <= 0 {
+			return fmt.Errorf("material %q: a Neo-Hookean material needs a positive C10 and D1 (got C10=%.3g, D1=%.3g)", mat.Name, h.C10, h.D1)
+		}
+		return nil
+	}
 	if mat.YoungMPa <= 0 {
 		return fmt.Errorf("material %q: set a positive Young's modulus", mat.Name)
 	}
