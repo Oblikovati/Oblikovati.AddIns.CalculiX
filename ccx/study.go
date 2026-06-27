@@ -431,6 +431,13 @@ func applyLoad(m *AnalysisModel, settings StudySettings, groups *FaceGroups, loa
 	switch settings.LoadType {
 	case LoadGravity:
 		m.Gravity = &GravityLoad{Accel: settings.GravityG * standardGravityMMs2, Dir: [3]float64{0, 0, -1}}
+	case LoadCentrifugal:
+		// v1 convention: rotation about the Z axis through the origin.
+		m.Centrifugal = &CentrifugalLoad{
+			Omega2:    settings.RotationRadS * settings.RotationRadS,
+			AxisPoint: [3]float64{0, 0, 0},
+			AxisDir:   [3]float64{0, 0, 1},
+		}
 	case LoadPressure:
 		var faces []ElemFace
 		for _, key := range loadFaces {
@@ -446,19 +453,24 @@ func applyLoad(m *AnalysisModel, settings StudySettings, groups *FaceGroups, loa
 	}
 }
 
-// minFaces is the number of selected faces a load type needs: gravity needs only the
-// support; force/pressure need the support plus loaded faces.
+// minFaces is the number of selected faces a load type needs: a body load (gravity,
+// centrifugal) needs only the support; force/pressure need the support plus loaded faces.
 func minFaces(load LoadType) int {
-	if load == LoadGravity {
+	if isBodyLoad(load) {
 		return 1
 	}
 	return 2
 }
 
+// isBodyLoad reports whether a load acts over the whole body (no loaded face needed).
+func isBodyLoad(load LoadType) bool {
+	return load == LoadGravity || load == LoadCentrifugal
+}
+
 // loadHint describes the remaining-face requirement for the selection error message.
 func loadHint(load LoadType) string {
-	if load == LoadGravity {
-		return " (gravity loads the whole body)"
+	if isBodyLoad(load) {
+		return " (the load acts over the whole body)"
 	}
 	return ", the rest carry the load"
 }

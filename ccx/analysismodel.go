@@ -80,6 +80,14 @@ type GravityLoad struct {
 	Dir   [3]float64 // unit direction (e.g. {0,0,-1} for downward)
 }
 
+// CentrifugalLoad applies the body force of rotation about an axis via a *DLOAD CENTRIF card:
+// each element feels ρ·ω²·r outward from the axis. It requires *DENSITY on the material.
+type CentrifugalLoad struct {
+	Omega2    float64    // angular velocity squared (rad/s)^2
+	AxisPoint [3]float64 // a point on the rotation axis (mm)
+	AxisDir   [3]float64 // axis direction (unit)
+}
+
 // MaterialSection assigns one material to an element set — a *SOLID SECTION over an *ELSET.
 // A single-material study has one section over every element; a multi-body study has one per
 // body (its element ids), so a part of mixed materials writes one *MATERIAL + *SOLID SECTION
@@ -101,6 +109,7 @@ type AnalysisModel struct {
 	Forces         []ForceLoad
 	Pressures      []PressureLoad
 	Gravity        *GravityLoad
+	Centrifugal    *CentrifugalLoad
 	Thermal        *ThermalLoad
 	Temperatures   []TemperatureBC // prescribed temperatures (heat transfer)
 	HeatFluxes     []HeatFlux      // surface heat fluxes (heat transfer)
@@ -144,7 +153,7 @@ func (m *AnalysisModel) distinctMaterials() []MaterialProps {
 // the body force; a frequency analysis needs it for the mass matrix. A static stress study
 // with only surface loads, and a buckling analysis (a static eigenproblem), do not.
 func (m *AnalysisModel) needsDensity() bool {
-	return m.Gravity != nil || m.Analysis == AnalysisFrequency || m.isTransient()
+	return m.Gravity != nil || m.Centrifugal != nil || m.Analysis == AnalysisFrequency || m.isTransient()
 }
 
 // isTransient reports whether the model solves a time-dependent step, which needs the

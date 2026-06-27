@@ -67,11 +67,14 @@ const (
 	LoadPressure LoadType = "pressure"
 	// LoadGravity applies self-weight over the whole body (*DLOAD GRAV); no loaded face.
 	LoadGravity LoadType = "gravity"
+	// LoadCentrifugal applies a centrifugal body force over the whole body (*DLOAD CENTRIF)
+	// for a part rotating about an axis; no loaded face.
+	LoadCentrifugal LoadType = "centrifugal"
 )
 
 // loadTypeOptions lists the panel dropdown choices in display order.
 func loadTypeOptions() []string {
-	return []string{string(LoadForce), string(LoadPressure), string(LoadGravity)}
+	return []string{string(LoadForce), string(LoadPressure), string(LoadGravity), string(LoadCentrifugal)}
 }
 
 // EMDrive selects how an electromagnetic (electric-conduction) study is driven.
@@ -136,6 +139,7 @@ type StudySettings struct {
 	LoadN        float64         // total force on the loaded faces (N), in -Z, for LoadForce
 	PressureMPa  float64         // pressure on the loaded faces (MPa) for LoadPressure
 	GravityG     float64         // gravity as a multiple of standard g for LoadGravity
+	RotationRadS float64         // angular velocity (rad/s) about the Z axis for LoadCentrifugal
 	Eigenmodes   int             // number of modes/factors for frequency and buckling analyses
 	ThermalAlpha float64         // thermal expansion coefficient (1/K) for thermomech
 	DeltaK       float64         // temperature change (K) for a thermomech study
@@ -176,6 +180,7 @@ func defaultSettings() StudySettings {
 		LoadN:           100,
 		PressureMPa:     1,
 		GravityG:        1,
+		RotationRadS:    100,
 		Eigenmodes:      6,
 		ThermalAlpha:    1.2e-5,
 		DeltaK:          100,
