@@ -62,6 +62,7 @@ func materialSection(s StudySettings) []wire.PanelControlSpec {
 		client.PanelTextBox("density", "Density (g/cm³)", formatNum(s.DensityGCm3)),
 		client.PanelTextBox("alpha", "Thermal expansion (1/K)", formatNum(s.ThermalAlpha)),
 		client.PanelTextBox("conductivity", "Thermal conductivity", formatNum(s.Conductivity)),
+		client.PanelTextBox("elec_sigma", "Electrical conductivity", formatNum(s.ElectricalSigma)),
 	)
 }
 
@@ -75,6 +76,7 @@ func loadsSection(s StudySettings) []wire.PanelControlSpec {
 		client.PanelTextBox("delta_t", "Temperature change ΔT (K)", formatNum(s.DeltaK)),
 		client.PanelTextBox("cold_temp", "Prescribed temperature (K)", formatNum(s.ColdTempK)),
 		client.PanelTextBox("heat_flux", "Heat flux on loaded faces", formatNum(s.HeatFluxQ)),
+		client.PanelTextBox("voltage", "Applied voltage on first face (V)", formatNum(s.VoltageV)),
 		client.PanelTextBox("deform_scale", "Deformation scale (0=auto)", formatNum(s.DeformScale)),
 	)
 }
@@ -153,6 +155,8 @@ func (e *Engine) applyMaterialEdit(controlID, value string) bool {
 		e.settings.ThermalAlpha = panelNum(value, e.settings.ThermalAlpha)
 	case "conductivity":
 		e.settings.Conductivity = panelNum(value, e.settings.Conductivity)
+	case "elec_sigma":
+		e.settings.ElectricalSigma = panelNum(value, e.settings.ElectricalSigma)
 	default:
 		return false
 	}
@@ -176,6 +180,8 @@ func (e *Engine) applyLoadEdit(controlID, value string) {
 		e.settings.ColdTempK = panelNum(value, e.settings.ColdTempK)
 	case "heat_flux":
 		e.settings.HeatFluxQ = panelNum(value, e.settings.HeatFluxQ)
+	case "voltage":
+		e.settings.VoltageV = panelNum(value, e.settings.VoltageV)
 	}
 }
 

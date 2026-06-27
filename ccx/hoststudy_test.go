@@ -5,6 +5,7 @@ package ccx
 import (
 	"encoding/base64"
 	"encoding/json"
+	"math"
 	"sync"
 	"testing"
 
@@ -196,10 +197,41 @@ func TestRunStudyOnHostHeatTransfer(t *testing.T) {
 	if err != nil {
 		t.Fatalf("RunStudyOnHost (heat): %v", err)
 	}
-	if res.Heat == nil {
+	if res.Scalar == nil {
 		t.Fatal("heat-transfer study returned no temperature result")
 	}
-	if !(res.Heat.MaxK > res.Heat.MinK) {
-		t.Errorf("temperature range = %.3g..%.3g K, want a gradient", res.Heat.MinK, res.Heat.MaxK)
+	if res.Scalar.Label != "temperature" || res.Scalar.Unit != "K" {
+		t.Errorf("scalar field = %q (%s), want temperature/K", res.Scalar.Label, res.Scalar.Unit)
+	}
+	if !(res.Scalar.Max > res.Scalar.Min) {
+		t.Errorf("temperature range = %.3g..%.3g K, want a gradient", res.Scalar.Min, res.Scalar.Max)
+	}
+}
+
+// TestRunStudyOnHostElectrostatic drives the electric-conduction path end-to-end against the
+// real vendored solver: the first face holds the applied voltage, the second is grounded, and
+// the study returns an electric-potential field with a gradient spanning [0, V].
+func TestRunStudyOnHostElectrostatic(t *testing.T) {
+	bins := requireSolver(t)
+	t.Setenv("OBK_CCX_BIN", bins.ccx)
+	t.Setenv("OBK_GMSH_BIN", bins.gmsh)
+
+	e := NewEngine(newBoxHost())
+	e.applyPanelEdit("analysis", string(AnalysisElectromagnetic))
+	e.applyPanelEdit("mesh_size", "4")
+	e.applyPanelEdit("voltage", "12")
+
+	res, err := e.RunStudyOnHost()
+	if err != nil {
+		t.Fatalf("RunStudyOnHost (electrostatic): %v", err)
+	}
+	if res.Scalar == nil {
+		t.Fatal("electrostatic study returned no potential result")
+	}
+	if res.Scalar.Label != "electric potential" || res.Scalar.Unit != "V" {
+		t.Errorf("scalar field = %q (%s), want electric potential/V", res.Scalar.Label, res.Scalar.Unit)
+	}
+	if math.Abs(res.Scalar.Min) > 0.1 || math.Abs(res.Scalar.Max-12) > 0.6 {
+		t.Errorf("potential range = %.3g..%.3g V, want ~0..12 V", res.Scalar.Min, res.Scalar.Max)
 	}
 }

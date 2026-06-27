@@ -17,6 +17,9 @@ func checkPrerequisites(m *AnalysisModel) error {
 	if m.Analysis == AnalysisHeatTransfer {
 		return checkHeatPrerequisites(m)
 	}
+	if m.Analysis == AnalysisElectromagnetic {
+		return checkElectrostaticPrerequisites(m)
+	}
 	if err := checkMaterial(m); err != nil {
 		return err
 	}
@@ -42,6 +45,33 @@ func checkHeatPrerequisites(m *AnalysisModel) error {
 		return errors.New("no heat source — set a non-zero heat flux on the loaded face(s)")
 	}
 	return nil
+}
+
+// checkElectrostaticPrerequisites validates an electric-conduction model: it needs a
+// positive electrical conductivity, a prescribed-potential face that resolved to nodes, and
+// a non-zero potential difference to drive a current (otherwise the field is uniformly zero).
+func checkElectrostaticPrerequisites(m *AnalysisModel) error {
+	if m.Material.ElectricalSigma <= 0 {
+		return errors.New("an electrostatic study needs a positive electrical conductivity")
+	}
+	if !hasTemperatureBC(m) {
+		return errors.New("the potential face resolved to no mesh nodes — pick a face of the part")
+	}
+	if !hasPotentialDifference(m) {
+		return errors.New("no potential difference — set a non-zero applied voltage")
+	}
+	return nil
+}
+
+// hasPotentialDifference reports whether some prescribed potential is non-zero (a zero-only
+// set of Dirichlet values produces a trivial, uniformly-zero field).
+func hasPotentialDifference(m *AnalysisModel) bool {
+	for _, t := range m.Temperatures {
+		if t.TempK != 0 && len(t.Nodes) > 0 {
+			return true
+		}
+	}
+	return false
 }
 
 // hasTemperatureBC reports whether a temperature is prescribed on some nodes.

@@ -10,16 +10,18 @@ import (
 // resultClientID is the client-graphics group the stress/temperature result is pushed under.
 const resultClientID = "ccx.result"
 
-// temperatureMapperName is the registered color mapper the temperature flood plot uses.
-const temperatureMapperName = "ccx.temperature"
+// scalarFieldMapperName is the registered color mapper the DOF-11 field (temperature /
+// electric potential) flood plot uses.
+const scalarFieldMapperName = "ccx.scalarfield"
 
-// renderTemperature paints the steady-state nodal temperature field over the surface as a
-// flood plot spanning the actual temperature range.
-func (e *Engine) renderTemperature(mesh *TetMesh, temps map[int]float64) error {
-	coords, indices, scalars := surfaceRenderData(mesh, temps)
-	lo, hi := minMaxField(temps)
+// renderScalarField paints a steady-state nodal DOF-11 field (temperature for heat
+// transfer, electric potential for the electrostatic analogy) over the surface as a flood
+// plot spanning the field's actual range.
+func (e *Engine) renderScalarField(mesh *TetMesh, values map[int]float64) error {
+	coords, indices, scalars := surfaceRenderData(mesh, values)
+	lo, hi := minMaxField(values)
 	mapper := rampMapper(lo, hi)
-	if err := e.api.Graphics().RegisterColorMapper(temperatureMapperName, mapper); err != nil {
+	if err := e.api.Graphics().RegisterColorMapper(scalarFieldMapperName, mapper); err != nil {
 		return err
 	}
 	_, err := e.api.Graphics().AddFloodPlot(resultClientID, coords, indices, scalars, mapper, 1.0)

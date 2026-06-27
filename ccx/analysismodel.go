@@ -12,6 +12,7 @@ type MaterialProps struct {
 	DensityTonneMM3 float64 // *DENSITY (t/mm^3); only emitted when a body load needs it
 	ExpansionPerK   float64 // *EXPANSION thermal coefficient (1/K); used by thermal stress
 	Conductivity    float64 // *CONDUCTIVITY (consistent units); used by heat transfer
+	ElectricalSigma float64 // electrical conductivity (consistent units); used by the electrostatic analogy
 }
 
 // TemperatureBC prescribes a fixed temperature on a node set (the temperature degree of
