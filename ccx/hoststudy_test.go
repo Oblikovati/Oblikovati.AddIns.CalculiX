@@ -3,6 +3,7 @@
 package ccx
 
 import (
+	"encoding/base64"
 	"encoding/json"
 	"sync"
 	"testing"
@@ -42,7 +43,9 @@ func (b *boxHost) Call(method string, req []byte) ([]byte, error) {
 	b.mu.Unlock()
 	switch method {
 	case wire.MethodModelSelection:
-		return json.Marshal(wire.SelectionResult{Count: 2, Refs: []string{fixedFaceKey, loadedFaceKey}})
+		// The host encodes a selected face as "face/<url-base64 of the raw key>".
+		refs := []string{encodeFaceRef(fixedFaceKey), encodeFaceRef(loadedFaceKey)}
+		return json.Marshal(wire.SelectionResult{Count: 2, Refs: refs})
 	case wire.MethodBodyCalculateFacets:
 		return json.Marshal(b.bodyFacets())
 	case wire.MethodFaceCalculateFacets:
@@ -84,6 +87,11 @@ func (b *boxHost) faceFacets(req []byte) ([]byte, error) {
 	var idx []int
 	coords, idx = appendQuad(coords, idx, b.box, quad)
 	return json.Marshal(wire.FacetSetResult{VertexCoordinates: coords, VertexIndices: idx})
+}
+
+// encodeFaceRef mirrors the host's selection encoding: "face/" + url-base64(raw key).
+func encodeFaceRef(rawKey string) string {
+	return faceRefPrefix + base64.RawURLEncoding.EncodeToString([]byte(rawKey))
 }
 
 // appendQuad appends a quad's two triangles to the coordinate/index soup.

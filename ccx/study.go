@@ -65,17 +65,18 @@ func (e *Engine) runStudy(bins solverBinaries, settings StudySettings, faces []s
 	return e.renderStudy(mesh, res, dir)
 }
 
-// selectedFaces returns the picked face reference keys, requiring at least a support and
-// a loaded face.
+// selectedFaces returns the picked faces' raw reference keys (decoded from the host's
+// "face/<base64>" selection form), requiring at least a support and a loaded face.
 func (e *Engine) selectedFaces() ([]string, error) {
 	sel, err := e.api.Model().Selection()
 	if err != nil {
 		return nil, fmt.Errorf("read selection: %w", err)
 	}
-	if len(sel.Refs) < 2 {
-		return nil, fmt.Errorf("select at least two faces — the first is fixed, the rest carry the load (selected %d)", len(sel.Refs))
+	faces := decodeSelectedFaces(sel.Refs)
+	if len(faces) < 2 {
+		return nil, fmt.Errorf("select at least two faces — the first is fixed, the rest carry the load (selected %d faces of %d entities)", len(faces), len(sel.Refs))
 	}
-	return sel.Refs, nil
+	return faces, nil
 }
 
 // meshActiveBody pulls and welds the active body's surface and volume-meshes it.
