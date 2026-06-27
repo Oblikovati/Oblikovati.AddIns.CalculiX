@@ -49,12 +49,14 @@ func panelControls(s StudySettings) []wire.PanelControlSpec {
 			client.PanelTextBox("young", "Young's modulus (GPa)", formatNum(s.YoungGPa)),
 			client.PanelTextBox("poisson", "Poisson's ratio", formatNum(s.Poisson)),
 			client.PanelTextBox("density", "Density (g/cm³)", formatNum(s.DensityGCm3)),
+			client.PanelTextBox("alpha", "Thermal expansion (1/K)", formatNum(s.ThermalAlpha)),
 		),
 		section("Loads & boundary conditions",
 			client.PanelDropdown("load_type", "Load type", loadTypeOptions(), string(s.LoadType)),
 			client.PanelTextBox("load", "Force on loaded faces (N)", formatNum(s.LoadN)),
 			client.PanelTextBox("pressure", "Pressure on loaded faces (MPa)", formatNum(s.PressureMPa)),
 			client.PanelTextBox("gravity", "Gravity (× g)", formatNum(s.GravityG)),
+			client.PanelTextBox("delta_t", "Temperature change ΔT (K)", formatNum(s.DeltaK)),
 			client.PanelTextBox("deform_scale", "Deformation scale (0=auto)", formatNum(s.DeformScale)),
 		),
 		[]wire.PanelControlSpec{client.PanelButton("run", "Run CalculiX", RunStudyCommandID)},
@@ -129,6 +131,10 @@ func (e *Engine) applyMaterialOrLoadEdit(controlID, value string) {
 		e.settings.PressureMPa = panelNum(value, e.settings.PressureMPa)
 	case "gravity":
 		e.settings.GravityG = panelNum(value, e.settings.GravityG)
+	case "alpha":
+		e.settings.ThermalAlpha = panelNum(value, e.settings.ThermalAlpha)
+	case "delta_t":
+		e.settings.DeltaK = panelNum(value, e.settings.DeltaK)
 	}
 }
 

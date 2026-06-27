@@ -115,10 +115,11 @@ func (e *Engine) selectedFaces(settings StudySettings) ([]string, error) {
 	return faces, nil
 }
 
-// facesNeeded is how many selected faces an analysis needs: a modal study needs only the
-// support; a static or buckling study needs the support plus the load faces.
+// facesNeeded is how many selected faces an analysis needs: a modal or thermal-stress study
+// needs only the support (no loaded face); a static or buckling study needs the support plus
+// the load faces.
 func facesNeeded(s StudySettings) int {
-	if s.Analysis == AnalysisFrequency {
+	if s.Analysis == AnalysisFrequency || s.Analysis == AnalysisThermomech {
 		return 1
 	}
 	return minFaces(s.LoadType)
@@ -210,8 +211,13 @@ func buildModel(settings StudySettings, mesh *TetMesh, groups *FaceGroups, faces
 		Fixed:          []FixedConstraint{{Name: "FIX", Nodes: groups.Nodes[faces[0]], DOFLow: 1, DOFHigh: 3}},
 		EigenmodeCount: settings.eigenmodeCount(),
 	}
-	// A modal (free-vibration) analysis applies no load; static and buckling do.
-	if settings.Analysis != AnalysisFrequency {
+	switch settings.Analysis {
+	case AnalysisFrequency:
+		// A modal (free-vibration) analysis applies no load.
+	case AnalysisThermomech:
+		// A thermal-stress analysis applies a uniform temperature field, no mechanical load.
+		m.Thermal = &ThermalLoad{DeltaK: settings.DeltaK}
+	default:
 		applyLoad(m, settings, groups, faces[1:])
 	}
 	return m
