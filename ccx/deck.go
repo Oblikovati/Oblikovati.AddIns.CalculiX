@@ -49,11 +49,11 @@ func WriteDeck(w io.Writer, m *AnalysisModel) error {
 	for _, c := range cons {
 		c.WriteSets(d)
 	}
-	writeStepBegin(d, m.Analysis)
+	writeStepBegin(d, m.Analysis, m.EigenmodeCount)
 	for _, c := range cons {
 		c.WriteStep(d)
 	}
-	writeStepOutput(d)
+	writeStepOutput(d, m.Analysis)
 	writeStepEnd(d)
 	return d.flush()
 }

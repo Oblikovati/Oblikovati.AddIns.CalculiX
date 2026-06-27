@@ -39,6 +39,7 @@ func panelControls(s StudySettings) []wire.PanelControlSpec {
 		header("Solver CalculiX Control", "Select the fixed face first, then the loaded face(s)."),
 		section("Solver Parameters",
 			client.PanelDropdown("analysis", "Analysis type", analysisTypeOptions(), string(s.Analysis)),
+			client.PanelTextBox("eigenmodes", "Modes (frequency/buckling)", formatNum(float64(s.Eigenmodes))),
 		),
 		section("Mesh",
 			client.PanelTextBox("mesh_size", "Max element size (mm, 0=auto)", formatNum(s.MeshSizeMM)),
@@ -104,6 +105,8 @@ func (e *Engine) applyPanelEdit(controlID, value string) {
 		e.settings.ElementOrder = parseElementOrder(value, e.settings.ElementOrder)
 	case "deform_scale":
 		e.settings.DeformScale = panelNum(value, e.settings.DeformScale)
+	case "eigenmodes":
+		e.settings.Eigenmodes = int(panelNum(value, float64(e.settings.Eigenmodes)))
 	default:
 		e.applyMaterialOrLoadEdit(controlID, value)
 	}

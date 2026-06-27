@@ -60,6 +60,52 @@ func parseFRD(r io.Reader) (*ResultField, error) {
 	return res, nil
 }
 
+// parseFirstModeDisp reads the displacement of the FIRST result block of a .frd — mode 1 of
+// a modal/buckling analysis (or the only block of a static run) — and stops before the next
+// block, so the first (lowest, most useful) mode shape is what gets visualized.
+func parseFirstModeDisp(r io.Reader) (map[int][3]float64, error) {
+	disp := map[int][3]float64{}
+	sc := bufio.NewScanner(r)
+	sc.Buffer(make([]byte, 1024*1024), 16*1024*1024)
+	mode, blockDone := frdNone, false
+	for sc.Scan() {
+		if firstModeStep(sc.Text(), &mode, &blockDone, disp) {
+			break // the next result block begins; keep only the first
+		}
+	}
+	if err := sc.Err(); err != nil {
+		return nil, fmt.Errorf("read frd: %w", err)
+	}
+	if len(disp) == 0 {
+		return nil, fmt.Errorf("frd has no mode-shape displacement")
+	}
+	return disp, nil
+}
+
+// firstModeStep advances the first-mode parser by one line, returning true once the first
+// displacement block has ended and the next result block starts.
+func firstModeStep(line string, mode *frdMode, blockDone *bool, disp map[int][3]float64) bool {
+	switch strings.TrimSpace(frdSlice(line, 0, frdKeyWidth)) {
+	case "-4":
+		if *blockDone {
+			return true
+		}
+		*mode = frdBlockMode(line)
+	case "-3":
+		if *mode == frdDisp {
+			*blockDone = true
+		}
+		*mode = frdNone
+	case "-1":
+		if *mode == frdDisp {
+			if id, v, ok := frdRow(line, 3); ok {
+				disp[id] = [3]float64{v[0], v[1], v[2]}
+			}
+		}
+	}
+	return false
+}
+
 // stepFRD advances the parser by one line, returning the (possibly changed) mode.
 func stepFRD(res *ResultField, line string, mode frdMode) frdMode {
 	key := strings.TrimSpace(frdSlice(line, 0, frdKeyWidth))
