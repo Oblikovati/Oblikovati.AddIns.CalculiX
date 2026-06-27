@@ -50,6 +50,19 @@ func (m *TetMesh) nodeByID() map[int]Node {
 	return index
 }
 
+// maxElementID returns the largest element id in the mesh, so generated elements (e.g. the
+// SPRING1 elements of an elastic support) can be numbered above the solid elements without
+// colliding. Returns 0 for an empty mesh.
+func maxElementID(m *TetMesh) int {
+	max := 0
+	for _, e := range m.Elements {
+		if e.ID > max {
+			max = e.ID
+		}
+	}
+	return max
+}
+
 // ElementType returns the CalculiX element keyword for this mesh (C3D10 or C3D4),
 // inferred from the first element. An empty mesh defaults to C3D10.
 func (m *TetMesh) ElementType() string {

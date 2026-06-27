@@ -117,6 +117,23 @@ func heatDriveOptions() []string {
 	return []string{string(HeatDriveFlux), string(HeatDriveFilm), string(HeatDriveBody), string(HeatDriveRadiation)}
 }
 
+// SupportType selects how the first (support) face is held in a mechanical static study.
+type SupportType string
+
+const (
+	// SupportFixed clamps the support face rigidly (a zero *BOUNDARY on all translations).
+	SupportFixed SupportType = "fixed"
+	// SupportElastic rests the support face on a grounded elastic foundation (*SPRING): the
+	// face is held by springs in every global direction rather than clamped, so it can settle
+	// under load. This is CalculiX's elastic-support / spring boundary condition.
+	SupportElastic SupportType = "elastic (spring)"
+)
+
+// supportTypeOptions lists the panel dropdown choices in display order.
+func supportTypeOptions() []string {
+	return []string{string(SupportFixed), string(SupportElastic)}
+}
+
 // standardGravityMMs2 is one g in CalculiX mm/s^2 units.
 const standardGravityMMs2 = 9810.0
 
@@ -189,6 +206,9 @@ type StudySettings struct {
 
 	ContactMode bool    // treat detected body interfaces as unilateral contact (vs bonded *TIE)
 	FrictionMu  float64 // Coulomb friction coefficient for contact interfaces; 0 = frictionless
+
+	SupportType   SupportType // how the support face is held in a static study (fixed vs elastic)
+	SpringStiffMM float64     // total elastic-support stiffness (N/mm) over the support face for SupportElastic
 }
 
 // eigenmodeCount returns the requested number of modes, clamped to a sensible minimum.
@@ -251,6 +271,8 @@ func withInterfaceDefaults(s StudySettings) StudySettings {
 	s.TransientTimeS = 0 // steady state by default
 	s.ContactMode = false
 	s.FrictionMu = 0.3 // a typical dry steel-on-steel value, used when ContactMode is on
+	s.SupportType = SupportFixed
+	s.SpringStiffMM = 1000 // N/mm total over the support face, used when SupportType is elastic
 	return s
 }
 

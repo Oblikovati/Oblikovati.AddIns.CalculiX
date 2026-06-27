@@ -307,16 +307,7 @@ func buildModel(settings StudySettings, mesh *TetMesh, groups *FaceGroups, faces
 		ResultField:    settings.ResultField,
 	}
 	applyInterfaces(m, settings, mesh)
-	if settings.Analysis == AnalysisHeatTransfer {
-		applyThermalBCs(m, settings, groups, faces)
-		return m
-	}
-	if settings.Analysis == AnalysisElectromagnetic {
-		applyElectrostaticBCs(m, settings, groups, faces)
-		return m
-	}
-	if settings.Analysis == AnalysisCoupledThermal {
-		applyCoupledThermal(m, settings, groups, faces)
+	if applyFieldAnalysisBCs(m, settings, groups, faces) {
 		return m
 	}
 	m.Fixed = []FixedConstraint{{Name: "FIX", Nodes: groups.Nodes[faces[0]], DOFLow: 1, DOFHigh: 3}}
@@ -327,9 +318,44 @@ func buildModel(settings StudySettings, mesh *TetMesh, groups *FaceGroups, faces
 		// A thermal-stress analysis applies a uniform temperature field, no mechanical load.
 		m.Thermal = &ThermalLoad{DeltaK: settings.DeltaK}
 	default:
+		applyStaticSupport(m, settings, groups, faces[0], mesh)
 		applyLoad(m, settings, groups, faces[1:])
 	}
 	return m
+}
+
+// applyStaticSupport swaps the rigid clamp on the support face for a grounded elastic foundation
+// when the study requests an elastic support (SupportElastic). The fixed clamp set earlier in
+// buildModel is kept for the default (fixed) case; here the elastic case replaces it with a
+// *SPRING foundation, numbered above the solid mesh's element ids, so the face can settle.
+func applyStaticSupport(m *AnalysisModel, settings StudySettings, groups *FaceGroups, supportFace string, mesh *TetMesh) {
+	if settings.SupportType != SupportElastic {
+		return
+	}
+	m.Fixed = nil
+	m.Springs = []SpringSupport{{
+		Name:           "FIX",
+		Nodes:          groups.Nodes[supportFace],
+		StiffnessTotal: settings.SpringStiffMM,
+		FirstElem:      maxElementID(mesh) + 1,
+	}}
+}
+
+// applyFieldAnalysisBCs applies the boundary conditions for the DOF-11 field analyses
+// (heat transfer, electrostatic, coupled thermomechanical), returning whether it handled the
+// analysis. The mechanical static / modal / thermal-stress analyses are handled by the caller.
+func applyFieldAnalysisBCs(m *AnalysisModel, settings StudySettings, groups *FaceGroups, faces []string) bool {
+	switch settings.Analysis {
+	case AnalysisHeatTransfer:
+		applyThermalBCs(m, settings, groups, faces)
+	case AnalysisElectromagnetic:
+		applyElectrostaticBCs(m, settings, groups, faces)
+	case AnalysisCoupledThermal:
+		applyCoupledThermal(m, settings, groups, faces)
+	default:
+		return false
+	}
+	return true
 }
 
 // applyInterfaces binds the touching body interfaces as either unilateral contact (when the

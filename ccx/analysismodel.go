@@ -91,6 +91,18 @@ type FixedConstraint struct {
 	DOFHigh int    // last constrained DOF (3 for a solid)
 }
 
+// SpringSupport rests a support face on a grounded elastic foundation: every node of the face is
+// tied to ground by a linear spring in each global direction (*SPRING / SPRING1 elements), so the
+// face is held against rigid-body motion yet free to settle under load — the elastic-support
+// boundary condition. The per-node-per-direction stiffness is the total face stiffness shared
+// equally over the nodes, so the whole face's stiffness in any direction is StiffnessTotal.
+type SpringSupport struct {
+	Name           string
+	Nodes          []int
+	StiffnessTotal float64 // total support stiffness (N/mm) in each global direction
+	FirstElem      int     // first free element id for the generated SPRING1 elements
+}
+
 // DisplacementBC enforces a prescribed displacement on a node set: a non-zero *BOUNDARY on a
 // single translational DOF, moving the face a set distance (vs a force, which sets the load).
 type DisplacementBC struct {
@@ -150,6 +162,7 @@ type AnalysisModel struct {
 	Material       MaterialProps     // the (first/only) material; see Sections for multi-material
 	Sections       []MaterialSection // per-body material sections; empty ⇒ single Material over all elements
 	Fixed          []FixedConstraint
+	Springs        []SpringSupport // elastic-support faces (grounded *SPRING foundation)
 	Displacements  []DisplacementBC
 	Forces         []ForceLoad
 	Pressures      []PressureLoad
