@@ -16,6 +16,12 @@ const (
 	AnalysisBuckling AnalysisType = "buckling"
 	// AnalysisThermomech is an uncoupled thermal-stress analysis (prescribed temperature).
 	AnalysisThermomech AnalysisType = "thermomech"
+	// AnalysisCoupledThermal is a coupled temperature-displacement analysis
+	// (*COUPLED TEMPERATURE-DISPLACEMENT): the temperature field is solved from the
+	// prescribed face temperatures and conduction, and its (non-uniform) thermal expansion
+	// drives the displacement/stress in the same step — steady-state, or transient when a
+	// total time is set.
+	AnalysisCoupledThermal AnalysisType = "coupled thermal-displacement"
 	// AnalysisHeatTransfer solves the steady-state temperature field (*HEAT TRANSFER).
 	AnalysisHeatTransfer AnalysisType = "heat transfer"
 	// AnalysisElectromagnetic is an electrostatic / electric-conduction analysis: the steady
@@ -33,6 +39,7 @@ func analysisTypeOptions() []string {
 		string(AnalysisFrequency),
 		string(AnalysisBuckling),
 		string(AnalysisThermomech),
+		string(AnalysisCoupledThermal),
 		string(AnalysisHeatTransfer),
 		string(AnalysisElectromagnetic),
 	}
@@ -122,6 +129,9 @@ type StudySettings struct {
 
 	VoltageV        float64 // prescribed potential on the first face for an electrostatic study (V)
 	ElectricalSigma float64 // electrical conductivity (consistent units) for an electrostatic study
+
+	SpecificHeat   float64 // specific heat capacity (consistent units) for transient coupled analysis
+	TransientTimeS float64 // total time (s) for a transient coupled study; 0 = steady state
 }
 
 // eigenmodeCount returns the requested number of modes, clamped to a sensible minimum.
@@ -156,6 +166,8 @@ func defaultSettings() StudySettings {
 		ResultField:     ResultVonMises,
 		VoltageV:        5,
 		ElectricalSigma: 1,
+		SpecificHeat:    5e8, // steel-like, consistent units (mm,t,s): ~0.5 J/(g·K)
+		TransientTimeS:  0,   // steady state by default
 	}
 }
 
@@ -170,5 +182,6 @@ func (s StudySettings) material() MaterialProps {
 		ExpansionPerK:   s.ThermalAlpha,
 		Conductivity:    s.Conductivity,
 		ElectricalSigma: s.ElectricalSigma,
+		SpecificHeat:    s.SpecificHeat,
 	}
 }

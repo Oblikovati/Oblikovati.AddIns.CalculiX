@@ -20,6 +20,9 @@ func checkPrerequisites(m *AnalysisModel) error {
 	if m.Analysis == AnalysisElectromagnetic {
 		return checkElectrostaticPrerequisites(m)
 	}
+	if m.Analysis == AnalysisCoupledThermal {
+		return checkCoupledPrerequisites(m)
+	}
 	if err := checkMaterial(m); err != nil {
 		return err
 	}
@@ -30,6 +33,49 @@ func checkPrerequisites(m *AnalysisModel) error {
 		return errors.New("no load applied — set a non-zero force, pressure, gravity, or temperature change")
 	}
 	return nil
+}
+
+// checkCoupledPrerequisites validates a coupled temperature-displacement model: it needs
+// elastic constants, a positive thermal expansion and conductivity, a mechanical support, a
+// prescribed-temperature face, and a temperature difference to drive expansion (plus a
+// positive specific heat when transient).
+func checkCoupledPrerequisites(m *AnalysisModel) error {
+	for _, mat := range m.distinctMaterials() {
+		if err := checkMaterialProps(mat, false, true); err != nil {
+			return err
+		}
+		if mat.Conductivity <= 0 {
+			return fmt.Errorf("material %q: a coupled study needs a positive thermal conductivity", mat.Name)
+		}
+		if m.isTransient() && mat.SpecificHeat <= 0 {
+			return fmt.Errorf("material %q: a transient study needs a positive specific heat", mat.Name)
+		}
+	}
+	if !hasSupportNodes(m) {
+		return errors.New("the support face resolved to no mesh nodes — pick a face of the part")
+	}
+	if !hasTemperatureBC(m) {
+		return errors.New("the temperature face resolved to no mesh nodes — pick a face of the part")
+	}
+	if !hasTemperatureGradient(m) {
+		return errors.New("no temperature difference — set a non-zero temperature change ΔT between the faces")
+	}
+	return nil
+}
+
+// hasTemperatureGradient reports whether the prescribed temperatures differ (a uniform field
+// produces no thermal stress in a free body).
+func hasTemperatureGradient(m *AnalysisModel) bool {
+	if len(m.Temperatures) < 2 {
+		return false
+	}
+	first := m.Temperatures[0].TempK
+	for _, t := range m.Temperatures[1:] {
+		if t.TempK != first {
+			return true
+		}
+	}
+	return false
 }
 
 // checkHeatPrerequisites validates a heat-transfer model: it needs conductivity, a

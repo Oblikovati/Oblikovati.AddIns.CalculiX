@@ -173,6 +173,8 @@ func facesNeeded(s StudySettings) int {
 		return 2 // a prescribed-temperature face and a heat-flux face
 	case AnalysisElectromagnetic:
 		return 2 // an applied-potential face and a ground face
+	case AnalysisCoupledThermal:
+		return 2 // a cold support face and a hot face (the gradient)
 	default:
 		return minFaces(s.LoadType)
 	}
@@ -313,6 +315,10 @@ func buildModel(settings StudySettings, mesh *TetMesh, groups *FaceGroups, faces
 		applyElectrostaticBCs(m, settings, groups, faces)
 		return m
 	}
+	if settings.Analysis == AnalysisCoupledThermal {
+		applyCoupledThermal(m, settings, groups, faces)
+		return m
+	}
 	m.Fixed = []FixedConstraint{{Name: "FIX", Nodes: groups.Nodes[faces[0]], DOFLow: 1, DOFHigh: 3}}
 	switch settings.Analysis {
 	case AnalysisFrequency:
@@ -348,6 +354,27 @@ func buildSections(mesh *TetMesh, materials []MaterialProps) []MaterialSection {
 		})
 	}
 	return sections
+}
+
+// applyCoupledThermal sets a coupled temperature-displacement model: the first selected face
+// is the mechanical support and is held at the cold/reference temperature; the remaining faces
+// are held hotter (cold + ΔT). The temperature field between them is solved by conduction, and
+// its thermal expansion (relative to the cold reference) drives the displacement/stress in the
+// same step. A non-zero transient time makes it time-dependent.
+func applyCoupledThermal(m *AnalysisModel, settings StudySettings, groups *FaceGroups, faces []string) {
+	m.Fixed = []FixedConstraint{{Name: "FIX", Nodes: groups.Nodes[faces[0]], DOFLow: 1, DOFHigh: 3}}
+	var hot []int
+	for _, key := range faces[1:] {
+		hot = append(hot, groups.Nodes[key]...)
+	}
+	m.Temperatures = []TemperatureBC{
+		{Name: "TCOLD", Nodes: groups.Nodes[faces[0]], TempK: settings.ColdTempK},
+		{Name: "THOT", Nodes: dedupeInts(hot), TempK: settings.ColdTempK + settings.DeltaK},
+	}
+	m.InitialTempK = settings.ColdTempK
+	if settings.TransientTimeS > 0 {
+		m.Transient = &TransientStep{IncrementS: settings.TransientTimeS / 10, TotalS: settings.TransientTimeS}
+	}
 }
 
 // applyThermalBCs sets a heat-transfer model's boundary conditions: a prescribed
