@@ -58,6 +58,9 @@ func (e *Engine) runStudy(bins solverBinaries, settings StudySettings, faces []s
 		return nil, err
 	}
 	model := buildModel(settings, mesh, groups, faces)
+	if err := checkPrerequisites(model); err != nil {
+		return nil, err
+	}
 	res, err := solveStudyDeck(bins, model, dir)
 	if err != nil {
 		return nil, err
@@ -162,16 +165,27 @@ func loadHint(load LoadType) string {
 	return ", the rest carry the load"
 }
 
-// solveStudyDeck writes the deck, runs ccx, and parses the result field.
+// solveStudyDeck writes the deck, runs ccx, surfaces any solver error in plain language,
+// and parses the result field. A *ERROR in the solver output takes priority over a raw
+// exit code, and a missing/empty .frd is reported with the solver's last words rather than
+// a cryptic open/parse failure.
 func solveStudyDeck(bins solverBinaries, model *AnalysisModel, dir string) (*ResultField, error) {
 	stem := filepath.Join(dir, "study")
 	if err := writeFile(stem+".inp", func(f *os.File) error { return WriteDeck(f, model) }); err != nil {
 		return nil, err
 	}
-	if err := runCcx(bins.ccx, stem); err != nil {
-		return nil, err
+	output, runErr := runCcx(bins.ccx, stem)
+	if diag := scrapeCcxErrors(output); diag != "" {
+		return nil, fmt.Errorf("CalculiX: %s", diag)
 	}
-	f, err := os.Open(stem + ".frd")
+	if runErr != nil {
+		return nil, fmt.Errorf("CalculiX solve failed: %w\n%s", runErr, lastLines(output, 8))
+	}
+	frd := stem + ".frd"
+	if fi, err := os.Stat(frd); err != nil || fi.Size() == 0 {
+		return nil, fmt.Errorf("CalculiX produced no results; solver output:\n%s", lastLines(output, 8))
+	}
+	f, err := os.Open(frd)
 	if err != nil {
 		return nil, fmt.Errorf("open frd: %w", err)
 	}
