@@ -58,7 +58,8 @@ func writeCoupledProcedure(d *deckBuf, ts *TransientStep) {
 // for the field-only analyses, nodal displacement (U) plus element stress (S) for the
 // mechanical analyses, and all three for a coupled thermomechanical study (which produces a
 // temperature field and a thermal-stress field together).
-func writeStepOutput(d *deckBuf, a AnalysisType) {
+func writeStepOutput(d *deckBuf, m *AnalysisModel) {
+	a := m.Analysis
 	if a == AnalysisHeatTransfer || a == AnalysisElectromagnetic {
 		// NT is the nodal DOF-11 field: temperature for heat, electric potential for the
 		// electrostatic analogy.
@@ -76,6 +77,26 @@ func writeStepOutput(d *deckBuf, a AnalysisType) {
 		d.line("*EL FILE")
 		d.line("S")
 	}
+	writeReactionPrint(d, m)
+}
+
+// writeReactionPrint requests the total reaction force over the clamped support, so the add-in
+// can read it back from the .dat and report it (the support's equilibrium reaction to the load).
+// It is written only for a static stress study with a fixed clamp — a modal/buckling/field study
+// has no meaningful reaction, and an elastic (spring) support carries the load through elements,
+// not boundary reactions.
+func writeReactionPrint(d *deckBuf, m *AnalysisModel) {
+	if !reportsReaction(m.Analysis) || len(m.Fixed) == 0 {
+		return
+	}
+	d.line("*NODE PRINT, NSET=%s, TOTALS=ONLY", m.Fixed[0].Name)
+	d.line("RF")
+}
+
+// reportsReaction reports whether the analysis produces a boundary reaction the add-in reads —
+// the mechanical static (stress / thermal-stress) studies that resolve through the .frd path.
+func reportsReaction(a AnalysisType) bool {
+	return a == AnalysisStatic || a == AnalysisThermomech
 }
 
 // writeStepEnd closes the analysis step.
