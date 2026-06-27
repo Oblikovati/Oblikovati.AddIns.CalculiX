@@ -91,6 +91,8 @@ func contactModeLabel(contact bool) string {
 func materialSection(s StudySettings) []wire.PanelControlSpec {
 	return section("Material",
 		client.PanelTextBox("young", "Young's modulus (GPa)", formatNum(s.YoungGPa)),
+		client.PanelTextBox("young_hot", "Young's modulus at hot temp (GPa, 0=const)", formatNum(s.YoungHotGPa)),
+		client.PanelTextBox("hot_temp", "Hot temperature (K) for E(T)", formatNum(s.HotTempK)),
 		client.PanelTextBox("poisson", "Poisson's ratio", formatNum(s.Poisson)),
 		client.PanelTextBox("yield", "Yield stress (MPa, 0=elastic)", formatNum(s.YieldMPa)),
 		client.PanelTextBox("density", "Density (g/cm³)", formatNum(s.DensityGCm3)),
@@ -212,12 +214,25 @@ func (e *Engine) applyMaterialEdit(controlID, value string) bool {
 	switch controlID {
 	case "young":
 		e.settings.YoungGPa = panelNum(value, e.settings.YoungGPa)
+	case "young_hot":
+		e.settings.YoungHotGPa = panelNum(value, e.settings.YoungHotGPa)
+	case "hot_temp":
+		e.settings.HotTempK = panelNum(value, e.settings.HotTempK)
 	case "poisson":
 		e.settings.Poisson = panelNum(value, e.settings.Poisson)
 	case "yield":
 		e.settings.YieldMPa = panelNum(value, e.settings.YieldMPa)
 	case "density":
 		e.settings.DensityGCm3 = panelNum(value, e.settings.DensityGCm3)
+	default:
+		return e.applyThermalMaterialEdit(controlID, value)
+	}
+	return true
+}
+
+// applyThermalMaterialEdit handles the thermal/electrical material-property controls.
+func (e *Engine) applyThermalMaterialEdit(controlID, value string) bool {
+	switch controlID {
 	case "alpha":
 		e.settings.ThermalAlpha = panelNum(value, e.settings.ThermalAlpha)
 	case "conductivity":

@@ -6,16 +6,26 @@ package ccx
 // N, MPa). The deck writer emits these verbatim, so all unit conversion from the host's
 // material data happens once, upstream (see units.go).
 type MaterialProps struct {
-	Name            string        // *MATERIAL name
-	YoungMPa        float64       // *ELASTIC Young's modulus (MPa = N/mm^2)
-	Poisson         float64       // *ELASTIC Poisson's ratio
-	DensityTonneMM3 float64       // *DENSITY (t/mm^3); only emitted when a body load needs it
-	ExpansionPerK   float64       // *EXPANSION thermal coefficient (1/K); used by thermal stress
-	Conductivity    float64       // *CONDUCTIVITY (consistent units); used by heat transfer
-	ElectricalSigma float64       // electrical conductivity (consistent units); used by the electrostatic analogy
-	SpecificHeat    float64       // *SPECIFIC HEAT (consistent units); used by transient coupled analysis
-	YieldMPa        float64       // *PLASTIC yield stress (MPa); 0 ⇒ purely linear-elastic, no plasticity
-	Ortho           *OrthoElastic // orthotropic elastic constants; nil ⇒ isotropic (Young/Poisson)
+	Name            string             // *MATERIAL name
+	YoungMPa        float64            // *ELASTIC Young's modulus (MPa = N/mm^2)
+	Poisson         float64            // *ELASTIC Poisson's ratio
+	DensityTonneMM3 float64            // *DENSITY (t/mm^3); only emitted when a body load needs it
+	ExpansionPerK   float64            // *EXPANSION thermal coefficient (1/K); used by thermal stress
+	Conductivity    float64            // *CONDUCTIVITY (consistent units); used by heat transfer
+	ElectricalSigma float64            // electrical conductivity (consistent units); used by the electrostatic analogy
+	SpecificHeat    float64            // *SPECIFIC HEAT (consistent units); used by transient coupled analysis
+	YieldMPa        float64            // *PLASTIC yield stress (MPa); 0 ⇒ purely linear-elastic, no plasticity
+	Ortho           *OrthoElastic      // orthotropic elastic constants; nil ⇒ isotropic (Young/Poisson)
+	ElasticTable    []ElasticTempPoint // temperature-dependent isotropic elasticity; empty ⇒ constant Young/Poisson
+}
+
+// ElasticTempPoint is one temperature row of a temperature-dependent *ELASTIC table: the Young's
+// modulus and Poisson's ratio that hold at TempK. CalculiX interpolates between rows by each
+// element's temperature, so a heated part softens (or stiffens) as its real material does.
+type ElasticTempPoint struct {
+	YoungMPa float64
+	Poisson  float64
+	TempK    float64
 }
 
 // OrthoElastic holds the nine engineering constants of an orthotropic material, in CalculiX

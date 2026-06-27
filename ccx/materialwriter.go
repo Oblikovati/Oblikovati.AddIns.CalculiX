@@ -52,6 +52,13 @@ func writeMaterialBlock(d *deckBuf, mat MaterialProps, m *AnalysisModel) {
 // or *ELASTIC, TYPE=ENGINEERING CONSTANTS with the nine orthotropic constants (CalculiX caps a
 // data line at eight values, so G23 spills to a second line).
 func writeElastic(d *deckBuf, mat MaterialProps) {
+	if len(mat.ElasticTable) > 0 {
+		d.line("*ELASTIC")
+		for _, p := range mat.ElasticTable {
+			d.line("%.10g, %.10g, %.10g", p.YoungMPa, p.Poisson, p.TempK)
+		}
+		return
+	}
 	if o := mat.Ortho; o != nil {
 		d.line("*ELASTIC, TYPE=ENGINEERING CONSTANTS")
 		d.line("%.10g, %.10g, %.10g, %.10g, %.10g, %.10g, %.10g, %.10g",

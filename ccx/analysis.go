@@ -229,6 +229,9 @@ type StudySettings struct {
 	SpringStiffMM float64     // total elastic-support stiffness (N/mm) over the support face for SupportElastic
 
 	BodyScope BodyScope // which solid bodies to analyse (all, or only those with a selected face)
+
+	YoungHotGPa float64 // Young's modulus (GPa) at HotTempK; >0 builds a temperature-dependent E(T) table
+	HotTempK    float64 // upper table temperature (K) at which YoungHotGPa applies
 }
 
 // eigenmodeCount returns the requested number of modes, clamped to a sensible minimum.
@@ -294,6 +297,8 @@ func withInterfaceDefaults(s StudySettings) StudySettings {
 	s.SupportType = SupportFixed
 	s.SpringStiffMM = 1000 // N/mm total over the support face, used when SupportType is elastic
 	s.BodyScope = BodyScopeAll
+	s.YoungHotGPa = 0 // 0 ⇒ temperature-independent elasticity (a single Young/Poisson)
+	s.HotTempK = 100
 	return s
 }
 
@@ -310,5 +315,19 @@ func (s StudySettings) material() MaterialProps {
 		ElectricalSigma: s.ElectricalSigma,
 		SpecificHeat:    s.SpecificHeat,
 		YieldMPa:        s.YieldMPa,
+		ElasticTable:    s.elasticTable(),
+	}
+}
+
+// elasticTable returns a two-row temperature-dependent elastic table (Young/Poisson at the
+// reference temperature 0 and at HotTempK) when a hot modulus is set, else nil for a constant
+// modulus. It lets a heated part use the softened modulus the real material has at temperature.
+func (s StudySettings) elasticTable() []ElasticTempPoint {
+	if s.YoungHotGPa <= 0 {
+		return nil
+	}
+	return []ElasticTempPoint{
+		{YoungMPa: s.YoungGPa * gpaToMPa, Poisson: s.Poisson, TempK: 0},
+		{YoungMPa: s.YoungHotGPa * gpaToMPa, Poisson: s.Poisson, TempK: s.HotTempK},
 	}
 }
