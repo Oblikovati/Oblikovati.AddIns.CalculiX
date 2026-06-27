@@ -14,6 +14,8 @@ func writeStepBegin(d *deckBuf, a AnalysisType, eigenCount int) {
 	case AnalysisBuckling:
 		d.line("*BUCKLE")
 		d.line("%d", eigenCount)
+	case AnalysisHeatTransfer:
+		d.line("*HEAT TRANSFER, STEADY STATE")
 	default:
 		d.line("*STATIC")
 	}
@@ -23,6 +25,11 @@ func writeStepBegin(d *deckBuf, a AnalysisType, eigenCount int) {
 // (mode shapes / deflection) always, and element stress only for a static stress study
 // (modal/buckling report eigenvalues, not a physical stress field).
 func writeStepOutput(d *deckBuf, a AnalysisType) {
+	if a == AnalysisHeatTransfer {
+		d.line("*NODE FILE")
+		d.line("NT")
+		return
+	}
 	d.line("*NODE FILE")
 	d.line("U")
 	if a != AnalysisFrequency && a != AnalysisBuckling {

@@ -14,8 +14,10 @@ const (
 	AnalysisFrequency AnalysisType = "frequency"
 	// AnalysisBuckling computes buckling load factors (*BUCKLE).
 	AnalysisBuckling AnalysisType = "buckling"
-	// AnalysisThermomech is a coupled/uncoupled temperature-displacement analysis.
+	// AnalysisThermomech is an uncoupled thermal-stress analysis (prescribed temperature).
 	AnalysisThermomech AnalysisType = "thermomech"
+	// AnalysisHeatTransfer solves the steady-state temperature field (*HEAT TRANSFER).
+	AnalysisHeatTransfer AnalysisType = "heat transfer"
 	// AnalysisElectromagnetic is an electromagnetic analysis (CalculiX electromagnetics).
 	AnalysisElectromagnetic AnalysisType = "electromagnetic"
 )
@@ -27,6 +29,7 @@ func analysisTypeOptions() []string {
 		string(AnalysisFrequency),
 		string(AnalysisBuckling),
 		string(AnalysisThermomech),
+		string(AnalysisHeatTransfer),
 		string(AnalysisElectromagnetic),
 	}
 }
@@ -83,6 +86,9 @@ type StudySettings struct {
 	Eigenmodes   int      // number of modes/factors for frequency and buckling analyses
 	ThermalAlpha float64  // thermal expansion coefficient (1/K) for thermomech
 	DeltaK       float64  // temperature change (K) for a thermomech study
+	Conductivity float64  // thermal conductivity (consistent units) for heat transfer
+	ColdTempK    float64  // prescribed temperature on the first (support) face (K)
+	HeatFluxQ    float64  // surface heat flux on the remaining faces (heat transfer)
 }
 
 // eigenmodeCount returns the requested number of modes, clamped to a sensible minimum.
@@ -111,6 +117,9 @@ func defaultSettings() StudySettings {
 		Eigenmodes:   6,
 		ThermalAlpha: 1.2e-5,
 		DeltaK:       100,
+		Conductivity: 50,
+		ColdTempK:    0,
+		HeatFluxQ:    50,
 	}
 }
 
@@ -123,5 +132,6 @@ func (s StudySettings) material() MaterialProps {
 		Poisson:         s.Poisson,
 		DensityTonneMM3: s.DensityGCm3 * gCm3ToTonneMM3,
 		ExpansionPerK:   s.ThermalAlpha,
+		Conductivity:    s.Conductivity,
 	}
 }

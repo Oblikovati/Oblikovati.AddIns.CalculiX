@@ -16,6 +16,14 @@ func TestStudyResultSummaryStatic(t *testing.T) {
 	}
 }
 
+func TestStudyResultSummaryHeat(t *testing.T) {
+	r := &StudyResult{ElementCount: 80, Heat: &HeatResult{MinK: 0, MaxK: 100}}
+	got := r.Summary()
+	if !strings.Contains(got, "temperature") || !strings.Contains(got, "0..100 K") {
+		t.Errorf("heat summary = %q", got)
+	}
+}
+
 func TestStudyResultSummaryModalTruncates(t *testing.T) {
 	r := &StudyResult{
 		ElementCount: 50,

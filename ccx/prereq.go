@@ -14,6 +14,9 @@ func checkPrerequisites(m *AnalysisModel) error {
 	if m.Mesh == nil || len(m.Mesh.Elements) == 0 {
 		return errors.New("the body did not mesh into any elements")
 	}
+	if m.Analysis == AnalysisHeatTransfer {
+		return checkHeatPrerequisites(m)
+	}
 	if err := checkMaterial(m); err != nil {
 		return err
 	}
@@ -24,6 +27,41 @@ func checkPrerequisites(m *AnalysisModel) error {
 		return errors.New("no load applied — set a non-zero force, pressure, gravity, or temperature change")
 	}
 	return nil
+}
+
+// checkHeatPrerequisites validates a heat-transfer model: it needs conductivity, a
+// prescribed-temperature face, and a heat source (flux).
+func checkHeatPrerequisites(m *AnalysisModel) error {
+	if m.Material.Conductivity <= 0 {
+		return errors.New("a heat-transfer study needs a positive thermal conductivity")
+	}
+	if !hasTemperatureBC(m) {
+		return errors.New("the temperature face resolved to no mesh nodes — pick a face of the part")
+	}
+	if !hasHeatSource(m) {
+		return errors.New("no heat source — set a non-zero heat flux on the loaded face(s)")
+	}
+	return nil
+}
+
+// hasTemperatureBC reports whether a temperature is prescribed on some nodes.
+func hasTemperatureBC(m *AnalysisModel) bool {
+	for _, t := range m.Temperatures {
+		if len(t.Nodes) > 0 {
+			return true
+		}
+	}
+	return false
+}
+
+// hasHeatSource reports whether a non-zero heat flux is applied.
+func hasHeatSource(m *AnalysisModel) bool {
+	for _, h := range m.HeatFluxes {
+		if h.Flux != 0 && len(h.Faces) > 0 {
+			return true
+		}
+	}
+	return false
 }
 
 // checkMaterial validates the elastic constants and the extra properties a body/thermal

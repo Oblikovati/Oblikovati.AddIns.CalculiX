@@ -7,8 +7,24 @@ import (
 	"os"
 )
 
-// resultClientID is the client-graphics group the stress result is pushed under.
+// resultClientID is the client-graphics group the stress/temperature result is pushed under.
 const resultClientID = "ccx.result"
+
+// temperatureMapperName is the registered color mapper the temperature flood plot uses.
+const temperatureMapperName = "ccx.temperature"
+
+// renderTemperature paints the steady-state nodal temperature field over the surface as a
+// flood plot spanning the actual temperature range.
+func (e *Engine) renderTemperature(mesh *TetMesh, temps map[int]float64) error {
+	coords, indices, scalars := surfaceRenderData(mesh, temps)
+	lo, hi := minMaxField(temps)
+	mapper := rampMapper(lo, hi)
+	if err := e.api.Graphics().RegisterColorMapper(temperatureMapperName, mapper); err != nil {
+		return err
+	}
+	_, err := e.api.Graphics().AddFloodPlot(resultClientID, coords, indices, scalars, mapper, 1.0)
+	return err
+}
 
 // renderModeShape paints the first mode's displacement-magnitude field over the surface —
 // the standard mode-shape visualization for a modal or buckling result.

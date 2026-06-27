@@ -106,6 +106,37 @@ func firstModeStep(line string, mode *frdMode, blockDone *bool, disp map[int][3]
 	return false
 }
 
+// parseNodalTemperatures reads the steady-state nodal temperature field (the NDTEMP block)
+// from a heat-transfer .frd. Each data row is "node temperature" (a single scalar).
+func parseNodalTemperatures(r io.Reader) (map[int]float64, error) {
+	temps := map[int]float64{}
+	sc := bufio.NewScanner(r)
+	sc.Buffer(make([]byte, 1024*1024), 16*1024*1024)
+	inTemp := false
+	for sc.Scan() {
+		line := sc.Text()
+		switch strings.TrimSpace(frdSlice(line, 0, frdKeyWidth)) {
+		case "-4":
+			inTemp = strings.Contains(line, "NDTEMP")
+		case "-3":
+			inTemp = false
+		case "-1":
+			if inTemp {
+				if id, v, ok := frdRow(line, 1); ok {
+					temps[id] = v[0]
+				}
+			}
+		}
+	}
+	if err := sc.Err(); err != nil {
+		return nil, fmt.Errorf("read frd: %w", err)
+	}
+	if len(temps) == 0 {
+		return nil, fmt.Errorf("frd has no temperature field")
+	}
+	return temps, nil
+}
+
 // stepFRD advances the parser by one line, returning the (possibly changed) mode.
 func stepFRD(res *ResultField, line string, mode frdMode) frdMode {
 	key := strings.TrimSpace(frdSlice(line, 0, frdKeyWidth))

@@ -141,3 +141,27 @@ func TestRunStudyOnHostDrivesFullPipeline(t *testing.T) {
 		}
 	}
 }
+
+// TestRunStudyOnHostHeatTransfer drives the heat-transfer path end-to-end against the real
+// vendored solver: the first face is held at 0 K, the second carries a heat flux, and the
+// study returns a temperature field with a gradient.
+func TestRunStudyOnHostHeatTransfer(t *testing.T) {
+	bins := requireSolver(t)
+	t.Setenv("OBK_CCX_BIN", bins.ccx)
+	t.Setenv("OBK_GMSH_BIN", bins.gmsh)
+
+	e := NewEngine(newBoxHost())
+	e.applyPanelEdit("analysis", string(AnalysisHeatTransfer))
+	e.applyPanelEdit("mesh_size", "4")
+
+	res, err := e.RunStudyOnHost()
+	if err != nil {
+		t.Fatalf("RunStudyOnHost (heat): %v", err)
+	}
+	if res.Heat == nil {
+		t.Fatal("heat-transfer study returned no temperature result")
+	}
+	if !(res.Heat.MaxK > res.Heat.MinK) {
+		t.Errorf("temperature range = %.3g..%.3g K, want a gradient", res.Heat.MinK, res.Heat.MaxK)
+	}
+}

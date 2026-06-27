@@ -50,6 +50,7 @@ func panelControls(s StudySettings) []wire.PanelControlSpec {
 			client.PanelTextBox("poisson", "Poisson's ratio", formatNum(s.Poisson)),
 			client.PanelTextBox("density", "Density (g/cm³)", formatNum(s.DensityGCm3)),
 			client.PanelTextBox("alpha", "Thermal expansion (1/K)", formatNum(s.ThermalAlpha)),
+			client.PanelTextBox("conductivity", "Thermal conductivity", formatNum(s.Conductivity)),
 		),
 		section("Loads & boundary conditions",
 			client.PanelDropdown("load_type", "Load type", loadTypeOptions(), string(s.LoadType)),
@@ -57,6 +58,8 @@ func panelControls(s StudySettings) []wire.PanelControlSpec {
 			client.PanelTextBox("pressure", "Pressure on loaded faces (MPa)", formatNum(s.PressureMPa)),
 			client.PanelTextBox("gravity", "Gravity (× g)", formatNum(s.GravityG)),
 			client.PanelTextBox("delta_t", "Temperature change ΔT (K)", formatNum(s.DeltaK)),
+			client.PanelTextBox("cold_temp", "Prescribed temperature (K)", formatNum(s.ColdTempK)),
+			client.PanelTextBox("heat_flux", "Heat flux on loaded faces", formatNum(s.HeatFluxQ)),
 			client.PanelTextBox("deform_scale", "Deformation scale (0=auto)", formatNum(s.DeformScale)),
 		),
 		[]wire.PanelControlSpec{client.PanelButton("run", "Run CalculiX", RunStudyCommandID)},
@@ -116,6 +119,14 @@ func (e *Engine) applyPanelEdit(controlID, value string) {
 
 // applyMaterialOrLoadEdit handles the material and load control edits.
 func (e *Engine) applyMaterialOrLoadEdit(controlID, value string) {
+	if e.applyMaterialEdit(controlID, value) {
+		return
+	}
+	e.applyLoadEdit(controlID, value)
+}
+
+// applyMaterialEdit handles the material-property controls, returning whether it matched.
+func (e *Engine) applyMaterialEdit(controlID, value string) bool {
 	switch controlID {
 	case "young":
 		e.settings.YoungGPa = panelNum(value, e.settings.YoungGPa)
@@ -123,6 +134,19 @@ func (e *Engine) applyMaterialOrLoadEdit(controlID, value string) {
 		e.settings.Poisson = panelNum(value, e.settings.Poisson)
 	case "density":
 		e.settings.DensityGCm3 = panelNum(value, e.settings.DensityGCm3)
+	case "alpha":
+		e.settings.ThermalAlpha = panelNum(value, e.settings.ThermalAlpha)
+	case "conductivity":
+		e.settings.Conductivity = panelNum(value, e.settings.Conductivity)
+	default:
+		return false
+	}
+	return true
+}
+
+// applyLoadEdit handles the load and boundary-condition controls.
+func (e *Engine) applyLoadEdit(controlID, value string) {
+	switch controlID {
 	case "load_type":
 		e.settings.LoadType = LoadType(strings.TrimSpace(value))
 	case "load":
@@ -131,10 +155,12 @@ func (e *Engine) applyMaterialOrLoadEdit(controlID, value string) {
 		e.settings.PressureMPa = panelNum(value, e.settings.PressureMPa)
 	case "gravity":
 		e.settings.GravityG = panelNum(value, e.settings.GravityG)
-	case "alpha":
-		e.settings.ThermalAlpha = panelNum(value, e.settings.ThermalAlpha)
 	case "delta_t":
 		e.settings.DeltaK = panelNum(value, e.settings.DeltaK)
+	case "cold_temp":
+		e.settings.ColdTempK = panelNum(value, e.settings.ColdTempK)
+	case "heat_flux":
+		e.settings.HeatFluxQ = panelNum(value, e.settings.HeatFluxQ)
 	}
 }
 
