@@ -21,8 +21,7 @@ func writeMaterials(d *deckBuf, m *AnalysisModel) {
 func writeMaterialBlock(d *deckBuf, mat MaterialProps, m *AnalysisModel) {
 	d.line("*MATERIAL, NAME=%s", mat.Name)
 	if needsElastic(m.Analysis) {
-		d.line("*ELASTIC")
-		d.line("%.10g, %.10g", mat.YoungMPa, mat.Poisson)
+		writeElastic(d, mat)
 		if m.hasPlasticity() && mat.YieldMPa > 0 {
 			// Perfect (ideal) plasticity: one stress/plastic-strain point at zero plastic
 			// strain caps the stress at the yield value (no hardening). *PLASTIC must follow
@@ -47,6 +46,21 @@ func writeMaterialBlock(d *deckBuf, mat MaterialProps, m *AnalysisModel) {
 		d.line("*SPECIFIC HEAT")
 		d.line("%.10g", mat.SpecificHeat)
 	}
+}
+
+// writeElastic emits the elastic constitutive card: an isotropic *ELASTIC (Young + Poisson),
+// or *ELASTIC, TYPE=ENGINEERING CONSTANTS with the nine orthotropic constants (CalculiX caps a
+// data line at eight values, so G23 spills to a second line).
+func writeElastic(d *deckBuf, mat MaterialProps) {
+	if o := mat.Ortho; o != nil {
+		d.line("*ELASTIC, TYPE=ENGINEERING CONSTANTS")
+		d.line("%.10g, %.10g, %.10g, %.10g, %.10g, %.10g, %.10g, %.10g",
+			o.E1MPa, o.E2MPa, o.E3MPa, o.Nu12, o.Nu13, o.Nu23, o.G12MPa, o.G13MPa)
+		d.line("%.10g", o.G23MPa)
+		return
+	}
+	d.line("*ELASTIC")
+	d.line("%.10g, %.10g", mat.YoungMPa, mat.Poisson)
 }
 
 // needsElastic reports whether the analysis solves a mechanical (displacement) field that
