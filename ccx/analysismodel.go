@@ -14,6 +14,7 @@ type MaterialProps struct {
 	Conductivity    float64 // *CONDUCTIVITY (consistent units); used by heat transfer
 	ElectricalSigma float64 // electrical conductivity (consistent units); used by the electrostatic analogy
 	SpecificHeat    float64 // *SPECIFIC HEAT (consistent units); used by transient coupled analysis
+	YieldMPa        float64 // *PLASTIC yield stress (MPa); 0 ⇒ purely linear-elastic, no plasticity
 }
 
 // TransientStep parameterizes a time-dependent step: the initial time increment and the
@@ -203,6 +204,20 @@ func (m *AnalysisModel) isCoupledThermal() bool { return m.Analysis == AnalysisC
 // needsExpansion reports whether *EXPANSION must be written: an uncoupled thermal-stress load
 // or a coupled thermomechanical study both produce thermal strain against it.
 func (m *AnalysisModel) needsExpansion() bool { return m.Thermal != nil || m.isCoupledThermal() }
+
+// hasPlasticity reports whether any material has a yield stress, so the deck writes *PLASTIC
+// and the step solves the resulting material nonlinearity incrementally.
+func (m *AnalysisModel) hasPlasticity() bool {
+	if !needsElastic(m.Analysis) {
+		return false
+	}
+	for _, mat := range m.distinctMaterials() {
+		if mat.YieldMPa > 0 {
+			return true
+		}
+	}
+	return false
+}
 
 // loadDirection returns the model's load direction for the visual aids, defaulting to -Z.
 func loadDirection(m *AnalysisModel) [3]float64 {

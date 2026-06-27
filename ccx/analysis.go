@@ -157,6 +157,7 @@ type StudySettings struct {
 
 	YoungGPa       float64         // material Young's modulus (GPa)
 	Poisson        float64         // material Poisson's ratio
+	YieldMPa       float64         // yield stress (MPa) for elastic-plastic material; 0 = linear elastic
 	DensityGCm3    float64         // material density (g/cm^3); used by gravity and frequency
 	LoadType       LoadType        // how the loaded faces are loaded
 	LoadN          float64         // total force on the loaded faces (N), in -Z, for LoadForce
@@ -205,6 +206,7 @@ func defaultSettings() StudySettings {
 		DeformScale:    0,
 		YoungGPa:       210,
 		Poisson:        0.3,
+		YieldMPa:       0, // linear-elastic by default
 		DensityGCm3:    7.85,
 		LoadType:       LoadForce,
 		LoadN:          100,
@@ -253,5 +255,6 @@ func (s StudySettings) material() MaterialProps {
 		Conductivity:    s.Conductivity,
 		ElectricalSigma: s.ElectricalSigma,
 		SpecificHeat:    s.SpecificHeat,
+		YieldMPa:        s.YieldMPa,
 	}
 }

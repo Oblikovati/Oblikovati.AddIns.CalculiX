@@ -22,6 +22,11 @@ func writeStepBegin(d *deckBuf, m *AnalysisModel) {
 		writeCoupledProcedure(d, m.Transient)
 	default:
 		d.line("*STATIC")
+		if m.hasPlasticity() {
+			// Ramp the load over several increments so the elastic-plastic Newton iteration
+			// converges past yield (tinc, tper).
+			d.line("0.1, 1.0")
+		}
 	}
 }
 

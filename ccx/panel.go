@@ -60,6 +60,7 @@ func materialSection(s StudySettings) []wire.PanelControlSpec {
 	return section("Material",
 		client.PanelTextBox("young", "Young's modulus (GPa)", formatNum(s.YoungGPa)),
 		client.PanelTextBox("poisson", "Poisson's ratio", formatNum(s.Poisson)),
+		client.PanelTextBox("yield", "Yield stress (MPa, 0=elastic)", formatNum(s.YieldMPa)),
 		client.PanelTextBox("density", "Density (g/cm³)", formatNum(s.DensityGCm3)),
 		client.PanelTextBox("alpha", "Thermal expansion (1/K)", formatNum(s.ThermalAlpha)),
 		client.PanelTextBox("conductivity", "Thermal conductivity", formatNum(s.Conductivity)),
@@ -163,6 +164,8 @@ func (e *Engine) applyMaterialEdit(controlID, value string) bool {
 		e.settings.YoungGPa = panelNum(value, e.settings.YoungGPa)
 	case "poisson":
 		e.settings.Poisson = panelNum(value, e.settings.Poisson)
+	case "yield":
+		e.settings.YieldMPa = panelNum(value, e.settings.YieldMPa)
 	case "density":
 		e.settings.DensityGCm3 = panelNum(value, e.settings.DensityGCm3)
 	case "alpha":
