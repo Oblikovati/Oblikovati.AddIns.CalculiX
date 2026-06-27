@@ -1,0 +1,39 @@
+** Single-element uniaxial validation deck for the vendored CalculiX build.
+** A 1x1x1 unit cube (C3D8), E=210000 MPa, nu=0.3, fixed against rigid-body motion,
+** pulled in +x by a total force of 210 N over the 1x1 face (sigma = 210 MPa).
+** Analytic result: loaded-face u_x = sigma*L/E = 210/210000 = 1.0E-03; lateral
+** Poisson contraction = -nu*strain = -3.0E-04. build.sh / CI asserts this exactly.
+*NODE, NSET=Nall
+1, 0., 0., 0.
+2, 1., 0., 0.
+3, 1., 1., 0.
+4, 0., 1., 0.
+5, 0., 0., 1.
+6, 1., 0., 1.
+7, 1., 1., 1.
+8, 0., 1., 1.
+*ELEMENT, TYPE=C3D8, ELSET=Eall
+1, 1, 2, 3, 4, 5, 6, 7, 8
+*MATERIAL, NAME=STEEL
+*ELASTIC
+210000., 0.3
+*SOLID SECTION, ELSET=Eall, MATERIAL=STEEL
+*BOUNDARY
+1, 1, 3
+2, 2, 3
+4, 1, 1
+4, 3, 3
+5, 1, 2
+8, 1, 1
+*STEP
+*STATIC
+*CLOAD
+2, 1, 52.5
+3, 1, 52.5
+6, 1, 52.5
+7, 1, 52.5
+*NODE FILE
+U
+*EL FILE
+S
+*END STEP

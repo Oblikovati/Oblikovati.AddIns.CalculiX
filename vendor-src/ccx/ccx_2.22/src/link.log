@@ -1,0 +1,10 @@
+/usr/bin/ld: ccx_2.22.o: in function `main':
+ccx_2.22.c:(.text.startup+0xb87e): undefined reference to `feasibledirection'
+/usr/bin/ld: ccx_2.22.a(robustdesign.o): in function `robustdesign':
+robustdesign.c:(.text+0x18cd): undefined reference to `randomfieldmain'
+/usr/bin/ld: ccx_2.22.a(sensi_coor.o): in function `sensi_coor':
+sensi_coor.c:(.text+0x369c): undefined reference to `filterbackwardmain'
+/usr/bin/ld: ccx_2.22.a(dsptrf.o): in function `dsptrf_':
+dsptrf.f:(.text+0x962): undefined reference to `dlaev2_'
+/usr/bin/ld: dsptrf.f:(.text+0x105c): undefined reference to `dlaev2_'
+collect2: error: ld returned 1 exit status
