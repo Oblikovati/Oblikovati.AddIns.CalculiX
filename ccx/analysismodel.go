@@ -66,6 +66,15 @@ type BodyHeat struct {
 	Rate float64 // volumetric generation (consistent units)
 }
 
+// RadiationBC applies radiative heat exchange to a set of element-faces (*RADIATE Rn) for a
+// heat-transfer analysis: each face radiates q = ε·σ·(T⁴ − AmbientK⁴) to the surroundings.
+type RadiationBC struct {
+	Name       string
+	Faces      []ElemFace
+	Emissivity float64 // surface emissivity (0..1)
+	AmbientK   float64 // ambient temperature (K)
+}
+
 // ThermalLoad applies a uniform temperature change over the whole body for an uncoupled
 // thermal-stress analysis: a *TEMPERATURE field in the step, relative to a stress-free
 // reference of zero, producing thermal expansion against the material's *EXPANSION.
@@ -151,6 +160,7 @@ type AnalysisModel struct {
 	HeatFluxes     []HeatFlux      // surface heat fluxes (heat transfer)
 	Films          []FilmBC        // convective film exchanges (heat transfer)
 	BodyHeat       *BodyHeat       // volumetric internal heat generation (heat transfer)
+	Radiations     []RadiationBC   // radiative face exchanges (heat transfer)
 	EigenmodeCount int             // number of modes/factors for *FREQUENCY / *BUCKLE
 	ResultField    ResultFieldKind // which scalar field a stress result is coloured by
 	Ties           []TieConstraint // bonded interfaces between touching bodies (*TIE)

@@ -101,6 +101,12 @@ func checkHeatPrerequisites(m *AnalysisModel) error {
 		}
 		return nil
 	}
+	if len(m.Radiations) > 0 {
+		if !hasRadiation(m) {
+			return errors.New("no radiation — set a non-zero emissivity on the loaded face(s)")
+		}
+		return nil
+	}
 	if !hasHeatSource(m) {
 		return errors.New("no heat source — set a non-zero heat flux on the loaded face(s)")
 	}
@@ -157,6 +163,16 @@ func hasPotentialDifference(m *AnalysisModel) bool {
 func hasTemperatureBC(m *AnalysisModel) bool {
 	for _, t := range m.Temperatures {
 		if len(t.Nodes) > 0 {
+			return true
+		}
+	}
+	return false
+}
+
+// hasRadiation reports whether a non-zero radiative exchange is applied.
+func hasRadiation(m *AnalysisModel) bool {
+	for _, r := range m.Radiations {
+		if r.Emissivity != 0 && len(r.Faces) > 0 {
 			return true
 		}
 	}

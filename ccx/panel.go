@@ -106,6 +106,8 @@ func loadsSection(s StudySettings) []wire.PanelControlSpec {
 		client.PanelTextBox("film_coeff", "Film coefficient (convection)", formatNum(s.FilmCoeff)),
 		client.PanelTextBox("sink_temp", "Ambient/sink temperature (K)", formatNum(s.SinkTempK)),
 		client.PanelTextBox("body_heat", "Body heat generation (volumetric)", formatNum(s.BodyHeatRate)),
+		client.PanelTextBox("emissivity", "Emissivity (radiation)", formatNum(s.Emissivity)),
+		client.PanelTextBox("rad_ambient", "Radiation ambient temp (K)", formatNum(s.RadAmbientK)),
 		client.PanelDropdown("em_drive", "EM drive", emDriveOptions(), string(s.EMDriveMode)),
 		client.PanelTextBox("voltage", "Applied voltage on first face (V)", formatNum(s.VoltageV)),
 		client.PanelTextBox("current_density", "Injected current density", formatNum(s.CurrentDensity)),
@@ -222,7 +224,8 @@ func (e *Engine) applyLoadEdit(controlID, value string) {
 	}
 }
 
-// applyFieldBCEdit handles the thermal boundary-condition controls, delegating the
+// applyFieldBCEdit handles the core thermal boundary-condition controls, delegating the
+// heat-drive (convection/body/radiation) parameters to applyHeatModeEdit and the
 // electromagnetic controls to applyEMEdit.
 func (e *Engine) applyFieldBCEdit(controlID, value string) {
 	switch controlID {
@@ -234,12 +237,25 @@ func (e *Engine) applyFieldBCEdit(controlID, value string) {
 		e.settings.HeatFluxQ = panelNum(value, e.settings.HeatFluxQ)
 	case "heat_drive":
 		e.settings.HeatDriveMode = HeatDrive(strings.TrimSpace(value))
+	default:
+		e.applyHeatModeEdit(controlID, value)
+	}
+}
+
+// applyHeatModeEdit handles the convection / body-source / radiation heat-drive parameters,
+// delegating anything else to applyEMEdit.
+func (e *Engine) applyHeatModeEdit(controlID, value string) {
+	switch controlID {
 	case "film_coeff":
 		e.settings.FilmCoeff = panelNum(value, e.settings.FilmCoeff)
 	case "sink_temp":
 		e.settings.SinkTempK = panelNum(value, e.settings.SinkTempK)
 	case "body_heat":
 		e.settings.BodyHeatRate = panelNum(value, e.settings.BodyHeatRate)
+	case "emissivity":
+		e.settings.Emissivity = panelNum(value, e.settings.Emissivity)
+	case "rad_ambient":
+		e.settings.RadAmbientK = panelNum(value, e.settings.RadAmbientK)
 	default:
 		e.applyEMEdit(controlID, value)
 	}

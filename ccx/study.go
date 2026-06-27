@@ -405,6 +405,11 @@ func applyThermalBCs(m *AnalysisModel, settings StudySettings, groups *FaceGroup
 		// so heat flows out through both ends (the classic generating-slab problem).
 		m.Temperatures = append(m.Temperatures, TemperatureBC{Name: "TEMP2", Nodes: dedupeInts(faceNodes(groups, faces[1:])), TempK: settings.ColdTempK})
 		m.BodyHeat = &BodyHeat{Rate: settings.BodyHeatRate}
+	case HeatDriveRadiation:
+		// The prescribed (hot) face drives heat that the remaining faces radiate to ambient;
+		// seed the nonlinear T⁴ solve with the prescribed temperature.
+		m.Radiations = []RadiationBC{{Name: "RAD", Faces: ef, Emissivity: settings.Emissivity, AmbientK: settings.RadAmbientK}}
+		m.InitialTempK = settings.ColdTempK
 	default:
 		m.HeatFluxes = []HeatFlux{{Name: "FLUX", Faces: ef, Flux: settings.HeatFluxQ}}
 	}

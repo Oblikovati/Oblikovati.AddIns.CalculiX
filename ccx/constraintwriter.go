@@ -55,6 +55,9 @@ func appendThermalWriters(cs []ConstraintWriter, m *AnalysisModel) []ConstraintW
 	if m.BodyHeat != nil {
 		cs = append(cs, bodyHeatWriter{c: m.BodyHeat})
 	}
+	for i := range m.Radiations {
+		cs = append(cs, radiateWriter{c: &m.Radiations[i]})
+	}
 	return cs
 }
 
