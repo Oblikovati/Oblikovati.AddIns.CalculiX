@@ -9,11 +9,16 @@ type pressureWriter struct{ c *PressureLoad }
 func (pressureWriter) WriteSets(*deckBuf) {} // pressure is addressed per element-face; no set needed
 
 func (p pressureWriter) WriteStep(d *deckBuf) {
-	if len(p.c.Faces) == 0 || p.c.MPa == 0 {
+	perFace := len(p.c.PerFaceMPa) == len(p.c.Faces)
+	if len(p.c.Faces) == 0 || (!perFace && p.c.MPa == 0) {
 		return
 	}
 	d.line("*DLOAD")
-	for _, ef := range p.c.Faces {
-		d.line("%d, P%d, %.10g", ef.Elem, ef.Face, p.c.MPa)
+	for i, ef := range p.c.Faces {
+		mpa := p.c.MPa
+		if perFace {
+			mpa = p.c.PerFaceMPa[i]
+		}
+		d.line("%d, P%d, %.10g", ef.Elem, ef.Face, mpa)
 	}
 }

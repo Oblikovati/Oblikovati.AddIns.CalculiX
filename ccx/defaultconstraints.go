@@ -40,6 +40,9 @@ func loadSpec(settings StudySettings, loadFaces []string) ConstraintSpec {
 			AxisPoint: [3]float64{0, 0, 0}, AxisDir: [3]float64{0, 0, 1}}
 	case LoadPressure:
 		return PressureSpec{Name: "LOAD", Faces: loadFaces, MPa: settings.PressureMPa}
+	case LoadHydrostatic:
+		return HydrostaticSpec{Name: "LOAD", Faces: loadFaces,
+			GradientMPa: settings.HydroGradientMPaMM, SurfaceZ: settings.HydroSurfaceZ}
 	case LoadDisplacement:
 		return DisplacementSpec{Name: "PRESCR", Faces: loadFaces, DOF: 3, Value: settings.DisplacementMM}
 	default: // LoadForce

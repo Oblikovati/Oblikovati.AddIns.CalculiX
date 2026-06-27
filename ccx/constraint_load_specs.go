@@ -33,6 +33,23 @@ func (s PressureSpec) Resolve(rc *ResolveContext) {
 	})
 }
 
+// HydrostaticSpec applies a depth-varying fluid pressure normal to a selected face: the pressure
+// at each element-face is computed from its centroid depth below the free surface.
+type HydrostaticSpec struct {
+	Name        string
+	Faces       []string
+	GradientMPa float64 // pressure gradient γ (MPa/mm = ρg)
+	SurfaceZ    float64 // fluid free-surface height (mm)
+}
+
+func (HydrostaticSpec) Kind() ConstraintKind { return KindHydrostatic }
+
+func (s HydrostaticSpec) Resolve(rc *ResolveContext) {
+	faces := groupElemFaces(rc.Groups, s.Faces)
+	rc.Model.Pressures = append(rc.Model.Pressures, PressureLoad{Name: s.Name, Faces: faces,
+		PerFaceMPa: hydrostaticPressures(rc.Mesh, faces, s.GradientMPa, s.SurfaceZ)})
+}
+
 // DisplacementSpec enforces a prescribed displacement on a selected face along one DOF.
 type DisplacementSpec struct {
 	Name  string

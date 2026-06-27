@@ -11,6 +11,7 @@ const (
 	KindElasticSupport ConstraintKind = "elastic support"
 	KindForce          ConstraintKind = "force"
 	KindPressure       ConstraintKind = "pressure"
+	KindHydrostatic    ConstraintKind = "hydrostatic"
 	KindGravity        ConstraintKind = "gravity"
 	KindCentrifugal    ConstraintKind = "centrifugal"
 	KindDisplacement   ConstraintKind = "displacement"

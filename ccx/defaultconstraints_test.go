@@ -57,6 +57,14 @@ func TestDefaultConstraintsReproduceEveryLoadType(t *testing.T) {
 	if len(disp.Displacements) != 1 || disp.Displacements[0].DOF != 3 || disp.Displacements[0].Value != 0.2 {
 		t.Fatalf("displacement: load mismatch, got %+v", disp.Displacements)
 	}
+
+	hyd := buildWith(t, withLoad(base, LoadHydrostatic, func(s *StudySettings) {
+		s.HydroGradientMPaMM = 0.01
+		s.HydroSurfaceZ = 5
+	}))
+	if len(hyd.Pressures) != 1 || len(hyd.Pressures[0].PerFaceMPa) != len(hyd.Pressures[0].Faces) || hyd.Pressures[0].MPa != 0 {
+		t.Fatalf("hydrostatic: expected per-face pressures, got %+v", hyd.Pressures)
+	}
 }
 
 // TestDefaultConstraintsSupportAndAnalysisBranches checks the elastic-support swap and the
