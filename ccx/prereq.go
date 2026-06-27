@@ -261,7 +261,7 @@ func hasSurfaceLoad(m *AnalysisModel) bool {
 		}
 	}
 	for _, p := range m.Pressures {
-		if p.MPa != 0 && len(p.Faces) > 0 {
+		if (p.MPa != 0 || len(p.PerFaceMPa) > 0) && len(p.Faces) > 0 {
 			return true
 		}
 	}

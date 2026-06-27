@@ -136,6 +136,8 @@ func loadsSection(s StudySettings) []wire.PanelControlSpec {
 		client.PanelDropdown("load_type", "Load type", loadTypeOptions(), string(s.LoadType)),
 		client.PanelTextBox("load", "Force on loaded faces (N)", formatNum(s.LoadN)),
 		client.PanelTextBox("pressure", "Pressure on loaded faces (MPa)", formatNum(s.PressureMPa)),
+		client.PanelTextBox("hydro_gradient", "Hydrostatic gradient ρg (MPa/mm)", formatNum(s.HydroGradientMPaMM)),
+		client.PanelTextBox("hydro_surface", "Fluid surface height z (mm)", formatNum(s.HydroSurfaceZ)),
 		client.PanelTextBox("gravity", "Gravity (× g)", formatNum(s.GravityG)),
 		client.PanelTextBox("rotation", "Rotation about Z (rad/s)", formatNum(s.RotationRadS)),
 		client.PanelTextBox("displacement", "Enforced displacement (mm, +Z)", formatNum(s.DisplacementMM)),
@@ -275,11 +277,10 @@ func (e *Engine) applyHyperelasticEdit(controlID, value string) bool {
 // applyLoadEdit handles the mechanical-load controls, delegating the thermal/electromagnetic
 // boundary-condition controls to applyFieldBCEdit.
 func (e *Engine) applyLoadEdit(controlID, value string) {
+	if e.applySupportEdit(controlID, value) {
+		return
+	}
 	switch controlID {
-	case "support_type":
-		e.settings.SupportType = SupportType(strings.TrimSpace(value))
-	case "spring_stiffness":
-		e.settings.SpringStiffMM = panelNum(value, e.settings.SpringStiffMM)
 	case "load_type":
 		e.settings.LoadType = LoadType(strings.TrimSpace(value))
 	case "load":
@@ -295,6 +296,24 @@ func (e *Engine) applyLoadEdit(controlID, value string) {
 	default:
 		e.applyFieldBCEdit(controlID, value)
 	}
+}
+
+// applySupportEdit handles the support controls (clamp vs elastic spring) and the hydrostatic
+// pressure parameters, returning whether it matched.
+func (e *Engine) applySupportEdit(controlID, value string) bool {
+	switch controlID {
+	case "support_type":
+		e.settings.SupportType = SupportType(strings.TrimSpace(value))
+	case "spring_stiffness":
+		e.settings.SpringStiffMM = panelNum(value, e.settings.SpringStiffMM)
+	case "hydro_gradient":
+		e.settings.HydroGradientMPaMM = panelNum(value, e.settings.HydroGradientMPaMM)
+	case "hydro_surface":
+		e.settings.HydroSurfaceZ = panelNum(value, e.settings.HydroSurfaceZ)
+	default:
+		return false
+	}
+	return true
 }
 
 // applyFieldBCEdit handles the core thermal boundary-condition controls, delegating the
