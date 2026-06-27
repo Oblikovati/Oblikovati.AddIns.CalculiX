@@ -27,6 +27,9 @@ func constraintWriters(m *AnalysisModel) []ConstraintWriter {
 	if m.Gravity != nil {
 		cs = append(cs, gravityWriter{c: m.Gravity})
 	}
+	if m.Thermal != nil {
+		cs = append(cs, thermalWriter{c: m.Thermal})
+	}
 	return cs
 }
 

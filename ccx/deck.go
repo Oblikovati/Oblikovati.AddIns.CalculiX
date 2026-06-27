@@ -42,7 +42,7 @@ func WriteDeck(w io.Writer, m *AnalysisModel) error {
 	d := newDeckBuf(w)
 	writeUnitsBanner(d)
 	writeMesh(d, m.Mesh)
-	writeMaterial(d, m.Material, m.needsDensity())
+	writeMaterial(d, m.Material, m.needsDensity(), m.Thermal != nil)
 	writeSolidSection(d, m.Material.Name)
 
 	cons := constraintWriters(m)

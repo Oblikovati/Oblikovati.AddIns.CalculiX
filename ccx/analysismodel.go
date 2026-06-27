@@ -10,6 +10,14 @@ type MaterialProps struct {
 	YoungMPa        float64 // *ELASTIC Young's modulus (MPa = N/mm^2)
 	Poisson         float64 // *ELASTIC Poisson's ratio
 	DensityTonneMM3 float64 // *DENSITY (t/mm^3); only emitted when a body load needs it
+	ExpansionPerK   float64 // *EXPANSION thermal coefficient (1/K); used by thermal stress
+}
+
+// ThermalLoad applies a uniform temperature change over the whole body for an uncoupled
+// thermal-stress analysis: a *TEMPERATURE field in the step, relative to a stress-free
+// reference of zero, producing thermal expansion against the material's *EXPANSION.
+type ThermalLoad struct {
+	DeltaK float64 // temperature change from the stress-free state (K)
 }
 
 // FixedConstraint pins a node set against translation. DOFLow..DOFHigh are CalculiX
@@ -55,6 +63,7 @@ type AnalysisModel struct {
 	Forces         []ForceLoad
 	Pressures      []PressureLoad
 	Gravity        *GravityLoad
+	Thermal        *ThermalLoad
 	EigenmodeCount int // number of modes/factors for *FREQUENCY / *BUCKLE
 }
 

@@ -25,7 +25,7 @@ func writeStepBegin(d *deckBuf, a AnalysisType, eigenCount int) {
 func writeStepOutput(d *deckBuf, a AnalysisType) {
 	d.line("*NODE FILE")
 	d.line("U")
-	if a == AnalysisStatic {
+	if a != AnalysisFrequency && a != AnalysisBuckling {
 		d.line("*EL FILE")
 		d.line("S")
 	}

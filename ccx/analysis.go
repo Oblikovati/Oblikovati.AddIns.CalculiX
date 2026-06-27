@@ -73,14 +73,16 @@ type StudySettings struct {
 	ElementOrder ElementOrder // tet element order
 	DeformScale  float64      // displacement magnification for the deformed-shape render; 0 = auto
 
-	YoungGPa    float64  // material Young's modulus (GPa)
-	Poisson     float64  // material Poisson's ratio
-	DensityGCm3 float64  // material density (g/cm^3); used by gravity and frequency
-	LoadType    LoadType // how the loaded faces are loaded
-	LoadN       float64  // total force on the loaded faces (N), in -Z, for LoadForce
-	PressureMPa float64  // pressure on the loaded faces (MPa) for LoadPressure
-	GravityG    float64  // gravity as a multiple of standard g for LoadGravity
-	Eigenmodes  int      // number of modes/factors for frequency and buckling analyses
+	YoungGPa     float64  // material Young's modulus (GPa)
+	Poisson      float64  // material Poisson's ratio
+	DensityGCm3  float64  // material density (g/cm^3); used by gravity and frequency
+	LoadType     LoadType // how the loaded faces are loaded
+	LoadN        float64  // total force on the loaded faces (N), in -Z, for LoadForce
+	PressureMPa  float64  // pressure on the loaded faces (MPa) for LoadPressure
+	GravityG     float64  // gravity as a multiple of standard g for LoadGravity
+	Eigenmodes   int      // number of modes/factors for frequency and buckling analyses
+	ThermalAlpha float64  // thermal expansion coefficient (1/K) for thermomech
+	DeltaK       float64  // temperature change (K) for a thermomech study
 }
 
 // eigenmodeCount returns the requested number of modes, clamped to a sensible minimum.
@@ -107,6 +109,8 @@ func defaultSettings() StudySettings {
 		PressureMPa:  1,
 		GravityG:     1,
 		Eigenmodes:   6,
+		ThermalAlpha: 1.2e-5,
+		DeltaK:       100,
 	}
 }
 
@@ -118,5 +122,6 @@ func (s StudySettings) material() MaterialProps {
 		YoungMPa:        s.YoungGPa * gpaToMPa,
 		Poisson:         s.Poisson,
 		DensityTonneMM3: s.DensityGCm3 * gCm3ToTonneMM3,
+		ExpansionPerK:   s.ThermalAlpha,
 	}
 }
