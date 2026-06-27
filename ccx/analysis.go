@@ -186,6 +186,9 @@ type StudySettings struct {
 
 	SpecificHeat   float64 // specific heat capacity (consistent units) for transient coupled analysis
 	TransientTimeS float64 // total time (s) for a transient coupled study; 0 = steady state
+
+	ContactMode bool    // treat detected body interfaces as unilateral contact (vs bonded *TIE)
+	FrictionMu  float64 // Coulomb friction coefficient for contact interfaces; 0 = frictionless
 }
 
 // eigenmodeCount returns the requested number of modes, clamped to a sensible minimum.
@@ -217,11 +220,11 @@ func defaultSettings() StudySettings {
 		Eigenmodes:     6,
 		ResultField:    ResultVonMises,
 	}
-	return withFieldDefaults(s)
+	return withInterfaceDefaults(withFieldDefaults(s))
 }
 
-// withFieldDefaults fills the thermal, heat-drive, electromagnetic, and transient default
-// parameters (kept out of defaultSettings to keep each function small).
+// withFieldDefaults fills the thermal, heat-drive (flux / convection / body / radiation), and
+// voltage-drive electromagnetic defaults; kept out of defaultSettings to keep it small.
 func withFieldDefaults(s StudySettings) StudySettings {
 	s.ThermalAlpha = 1.2e-5
 	s.DeltaK = 100
@@ -237,9 +240,17 @@ func withFieldDefaults(s StudySettings) StudySettings {
 	s.VoltageV = 5
 	s.ElectricalSigma = 1
 	s.EMDriveMode = EMVoltage
+	return s
+}
+
+// withInterfaceDefaults fills the current-drive, transient, and multi-body interface defaults,
+// kept out of defaultSettings so that function stays within the length budget as it grows.
+func withInterfaceDefaults(s StudySettings) StudySettings {
 	s.CurrentDensity = 1
 	s.SpecificHeat = 5e8 // steel-like, consistent units (mm,t,s): ~0.5 J/(g·K)
 	s.TransientTimeS = 0 // steady state by default
+	s.ContactMode = false
+	s.FrictionMu = 0.3 // a typical dry steel-on-steel value, used when ContactMode is on
 	return s
 }
 

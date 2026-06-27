@@ -21,12 +21,19 @@ func writeStepBegin(d *deckBuf, m *AnalysisModel) {
 	case AnalysisCoupledThermal:
 		writeCoupledProcedure(d, m.Transient)
 	default:
-		d.line("*STATIC")
-		if m.hasPlasticity() {
-			// Ramp the load over several increments so the elastic-plastic Newton iteration
-			// converges past yield (tinc, tper).
-			d.line("0.1, 1.0")
-		}
+		writeStaticProcedure(d, m)
+	}
+}
+
+// writeStaticProcedure emits the *STATIC card, adding a time-increment data line when the step
+// is nonlinear — either contact or an elastic-plastic material. CalculiX then ramps the load
+// over increments (tinc, tper) so the Newton iteration converges through contact closure or
+// past yield, rather than applying it in one shot; a purely linear study omits it (one
+// increment, as before).
+func writeStaticProcedure(d *deckBuf, m *AnalysisModel) {
+	d.line("*STATIC")
+	if m.hasContact() || m.hasPlasticity() {
+		d.line("0.1, 1.0")
 	}
 }
 

@@ -6,15 +6,25 @@ package ccx
 // N, MPa). The deck writer emits these verbatim, so all unit conversion from the host's
 // material data happens once, upstream (see units.go).
 type MaterialProps struct {
-	Name            string  // *MATERIAL name
-	YoungMPa        float64 // *ELASTIC Young's modulus (MPa = N/mm^2)
-	Poisson         float64 // *ELASTIC Poisson's ratio
-	DensityTonneMM3 float64 // *DENSITY (t/mm^3); only emitted when a body load needs it
-	ExpansionPerK   float64 // *EXPANSION thermal coefficient (1/K); used by thermal stress
-	Conductivity    float64 // *CONDUCTIVITY (consistent units); used by heat transfer
-	ElectricalSigma float64 // electrical conductivity (consistent units); used by the electrostatic analogy
-	SpecificHeat    float64 // *SPECIFIC HEAT (consistent units); used by transient coupled analysis
-	YieldMPa        float64 // *PLASTIC yield stress (MPa); 0 ⇒ purely linear-elastic, no plasticity
+	Name            string        // *MATERIAL name
+	YoungMPa        float64       // *ELASTIC Young's modulus (MPa = N/mm^2)
+	Poisson         float64       // *ELASTIC Poisson's ratio
+	DensityTonneMM3 float64       // *DENSITY (t/mm^3); only emitted when a body load needs it
+	ExpansionPerK   float64       // *EXPANSION thermal coefficient (1/K); used by thermal stress
+	Conductivity    float64       // *CONDUCTIVITY (consistent units); used by heat transfer
+	ElectricalSigma float64       // electrical conductivity (consistent units); used by the electrostatic analogy
+	SpecificHeat    float64       // *SPECIFIC HEAT (consistent units); used by transient coupled analysis
+	YieldMPa        float64       // *PLASTIC yield stress (MPa); 0 ⇒ purely linear-elastic, no plasticity
+	Ortho           *OrthoElastic // orthotropic elastic constants; nil ⇒ isotropic (Young/Poisson)
+}
+
+// OrthoElastic holds the nine engineering constants of an orthotropic material, in CalculiX
+// units (E, G in MPa), emitted as *ELASTIC, TYPE=ENGINEERING CONSTANTS. The material axes are
+// the global axes (1=x, 2=y, 3=z).
+type OrthoElastic struct {
+	E1MPa, E2MPa, E3MPa    float64
+	Nu12, Nu13, Nu23       float64
+	G12MPa, G13MPa, G23MPa float64
 }
 
 // TransientStep parameterizes a time-dependent step: the initial time increment and the
@@ -154,6 +164,7 @@ type AnalysisModel struct {
 	EigenmodeCount int             // number of modes/factors for *FREQUENCY / *BUCKLE
 	ResultField    ResultFieldKind // which scalar field a stress result is coloured by
 	Ties           []TieConstraint // bonded interfaces between touching bodies (*TIE)
+	Contacts       []ContactPair   // unilateral contact interfaces between touching bodies (*CONTACT PAIR)
 	InitialTempK   float64         // reference/initial temperature (*INITIAL CONDITIONS); 0 = default
 	Transient      *TransientStep  // time stepping for a transient coupled study; nil = steady state
 }
@@ -185,6 +196,22 @@ func (m *AnalysisModel) distinctMaterials() []MaterialProps {
 		}
 	}
 	return out
+}
+
+// hasContact reports whether the model carries any unilateral contact pair. Contact is a
+// nonlinear boundary condition, so its presence forces an incremented *STATIC solve.
+func (m *AnalysisModel) hasContact() bool { return len(m.Contacts) > 0 }
+
+// maxYoungMPa returns the stiffest material's Young's modulus, used to scale a penalty contact
+// stiffness off the model's real stiffness rather than a hard-coded constant.
+func (m *AnalysisModel) maxYoungMPa() float64 {
+	var max float64
+	for _, mat := range m.distinctMaterials() {
+		if mat.YoungMPa > max {
+			max = mat.YoungMPa
+		}
+	}
+	return max
 }
 
 // needsDensity reports whether *DENSITY must be written. A gravity body load needs it for

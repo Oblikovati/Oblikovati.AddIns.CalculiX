@@ -51,6 +51,7 @@ func WriteDeck(w io.Writer, m *AnalysisModel) error {
 		c.WriteSets(d)
 	}
 	writeTies(d, m.Ties)
+	writeContacts(d, m.Contacts)
 	writeInitialTemperature(d, m)
 	writePhysicalConstants(d, m)
 	writeStepBegin(d, m)
