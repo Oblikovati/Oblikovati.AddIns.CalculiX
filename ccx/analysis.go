@@ -134,6 +134,24 @@ func supportTypeOptions() []string {
 	return []string{string(SupportFixed), string(SupportElastic)}
 }
 
+// BodyScope selects which of the active part's solid bodies a study analyses.
+type BodyScope string
+
+const (
+	// BodyScopeAll analyses every solid body in the active part (the default — unchanged
+	// behaviour, so a single-body or whole-assembly study needs no setup).
+	BodyScopeAll BodyScope = "all solid bodies"
+	// BodyScopeSelected analyses only the solid bodies that own a selected face, so the user
+	// scopes a study to a sub-assembly by picking faces on the bodies of interest. A body with
+	// no selected face — e.g. a middle body in a load path — is then excluded, so this is opt-in.
+	BodyScopeSelected BodyScope = "bodies with a selected face"
+)
+
+// bodyScopeOptions lists the panel dropdown choices in display order.
+func bodyScopeOptions() []string {
+	return []string{string(BodyScopeAll), string(BodyScopeSelected)}
+}
+
 // standardGravityMMs2 is one g in CalculiX mm/s^2 units.
 const standardGravityMMs2 = 9810.0
 
@@ -209,6 +227,8 @@ type StudySettings struct {
 
 	SupportType   SupportType // how the support face is held in a static study (fixed vs elastic)
 	SpringStiffMM float64     // total elastic-support stiffness (N/mm) over the support face for SupportElastic
+
+	BodyScope BodyScope // which solid bodies to analyse (all, or only those with a selected face)
 }
 
 // eigenmodeCount returns the requested number of modes, clamped to a sensible minimum.
@@ -273,6 +293,7 @@ func withInterfaceDefaults(s StudySettings) StudySettings {
 	s.FrictionMu = 0.3 // a typical dry steel-on-steel value, used when ContactMode is on
 	s.SupportType = SupportFixed
 	s.SpringStiffMM = 1000 // N/mm total over the support face, used when SupportType is elastic
+	s.BodyScope = BodyScopeAll
 	return s
 }
 

@@ -113,6 +113,10 @@ func (e *Engine) prepareStudy(bins solverBinaries, settings StudySettings, faces
 	if err != nil {
 		return nil, nil, nil, err
 	}
+	solids, err = e.scopeBodies(settings, solids, faces)
+	if err != nil {
+		return nil, nil, nil, err
+	}
 	mesh, err := e.meshSolidBodies(bins, settings, solids, dir)
 	if err != nil {
 		return nil, nil, nil, err

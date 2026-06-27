@@ -64,7 +64,17 @@ func contactSection(s StudySettings) []wire.PanelControlSpec {
 	return section("Contact",
 		client.PanelDropdown("contact_mode", "Body interfaces", contactModeOptions(), contactModeLabel(s.ContactMode)),
 		client.PanelTextBox("friction", "Friction coefficient μ", formatNum(s.FrictionMu)),
+		client.PanelDropdown("body_scope", "Analyse", bodyScopeOptions(), string(bodyScopeOrDefault(s.BodyScope))),
 	)
+}
+
+// bodyScopeOrDefault treats the zero value as the default (all solid bodies), so an unset
+// setting renders as the unchanged whole-part scope.
+func bodyScopeOrDefault(scope BodyScope) BodyScope {
+	if scope == "" {
+		return BodyScopeAll
+	}
+	return scope
 }
 
 // contactModeOptions / contactModeLabel map the bonded-vs-contact toggle to dropdown labels.
@@ -297,6 +307,8 @@ func (e *Engine) applyEMEdit(controlID, value string) {
 		e.settings.ContactMode = strings.TrimSpace(value) == "contact"
 	case "friction":
 		e.settings.FrictionMu = panelNum(value, e.settings.FrictionMu)
+	case "body_scope":
+		e.settings.BodyScope = BodyScope(strings.TrimSpace(value))
 	}
 }
 
