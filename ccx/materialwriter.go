@@ -23,6 +23,13 @@ func writeMaterialBlock(d *deckBuf, mat MaterialProps, m *AnalysisModel) {
 	if needsElastic(m.Analysis) {
 		d.line("*ELASTIC")
 		d.line("%.10g, %.10g", mat.YoungMPa, mat.Poisson)
+		if m.hasPlasticity() && mat.YieldMPa > 0 {
+			// Perfect (ideal) plasticity: one stress/plastic-strain point at zero plastic
+			// strain caps the stress at the yield value (no hardening). *PLASTIC must follow
+			// *ELASTIC,TYPE=ISO.
+			d.line("*PLASTIC")
+			d.line("%.10g, 0.", mat.YieldMPa)
+		}
 	}
 	if m.needsDensity() {
 		d.line("*DENSITY")

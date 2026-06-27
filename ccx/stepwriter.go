@@ -26,16 +26,15 @@ func writeStepBegin(d *deckBuf, m *AnalysisModel) {
 }
 
 // writeStaticProcedure emits the *STATIC card, adding a time-increment data line when the step
-// is nonlinear (contact). Contact convergence needs CalculiX to ramp the load over increments
-// rather than apply it in one shot, so a "tinc, tper" line opens the door to automatic
-// sub-incrementation; a purely linear static study omits it (one increment, as before).
+// is nonlinear — either contact or an elastic-plastic material. CalculiX then ramps the load
+// over increments (tinc, tper) so the Newton iteration converges through contact closure or
+// past yield, rather than applying it in one shot; a purely linear study omits it (one
+// increment, as before).
 func writeStaticProcedure(d *deckBuf, m *AnalysisModel) {
-	if m.hasContact() {
-		d.line("*STATIC")
-		d.line("0.1, 1.0")
-		return
-	}
 	d.line("*STATIC")
+	if m.hasContact() || m.hasPlasticity() {
+		d.line("0.1, 1.0")
+	}
 }
 
 // writeCoupledProcedure emits the coupled temperature-displacement procedure card: steady
