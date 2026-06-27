@@ -530,12 +530,8 @@ func applyLoad(m *AnalysisModel, settings StudySettings, groups *FaceGroups, loa
 			AxisPoint: [3]float64{0, 0, 0},
 			AxisDir:   [3]float64{0, 0, 1},
 		}
-	case LoadPressure:
-		var faces []ElemFace
-		for _, key := range loadFaces {
-			faces = append(faces, groups.ElemFaces[key]...)
-		}
-		m.Pressures = []PressureLoad{{Name: "LOAD", Faces: faces, MPa: settings.PressureMPa}}
+	case LoadPressure, LoadHydrostatic:
+		m.Pressures = []PressureLoad{pressureLoadFor(m, settings, groups, loadFaces)}
 	case LoadDisplacement:
 		var nodes []int
 		for _, key := range loadFaces {
@@ -549,6 +545,21 @@ func applyLoad(m *AnalysisModel, settings StudySettings, groups *FaceGroups, loa
 		}
 		m.Forces = []ForceLoad{{Name: "LOAD", Nodes: dedupeInts(nodes), Dir: [3]float64{0, 0, -1}, TotalN: settings.LoadN}}
 	}
+}
+
+// pressureLoadFor builds the surface-pressure load on the loaded faces: a uniform pressure, or a
+// depth-varying hydrostatic pressure (one value per face from its centroid depth) when the load
+// type is hydrostatic.
+func pressureLoadFor(m *AnalysisModel, settings StudySettings, groups *FaceGroups, loadFaces []string) PressureLoad {
+	var faces []ElemFace
+	for _, key := range loadFaces {
+		faces = append(faces, groups.ElemFaces[key]...)
+	}
+	if settings.LoadType == LoadHydrostatic {
+		return PressureLoad{Name: "LOAD", Faces: faces,
+			PerFaceMPa: hydrostaticPressures(m.Mesh, faces, settings.HydroGradientMPaMM, settings.HydroSurfaceZ)}
+	}
+	return PressureLoad{Name: "LOAD", Faces: faces, MPa: settings.PressureMPa}
 }
 
 // minFaces is the number of selected faces a load type needs: a body load (gravity,

@@ -73,11 +73,15 @@ const (
 	// LoadDisplacement enforces a prescribed displacement on the loaded face(s) (a non-zero
 	// *BOUNDARY on DOF 3), pulling/pushing them a set distance instead of applying a force.
 	LoadDisplacement LoadType = "displacement"
+	// LoadHydrostatic applies a depth-varying fluid pressure normal to the loaded face(s): the
+	// pressure grows linearly below a free surface (p = γ·(z_surface − z), zero above), the way a
+	// column of liquid presses on a submerged wall (*DLOAD Pn with a per-face pressure).
+	LoadHydrostatic LoadType = "hydrostatic"
 )
 
 // loadTypeOptions lists the panel dropdown choices in display order.
 func loadTypeOptions() []string {
-	return []string{string(LoadForce), string(LoadPressure), string(LoadGravity), string(LoadCentrifugal), string(LoadDisplacement)}
+	return []string{string(LoadForce), string(LoadPressure), string(LoadGravity), string(LoadCentrifugal), string(LoadDisplacement), string(LoadHydrostatic)}
 }
 
 // EMDrive selects how an electromagnetic (electric-conduction) study is driven.
@@ -251,6 +255,9 @@ type StudySettings struct {
 
 	YoungHotGPa float64 // Young's modulus (GPa) at HotTempK; >0 builds a temperature-dependent E(T) table
 	HotTempK    float64 // upper table temperature (K) at which YoungHotGPa applies
+
+	HydroGradientMPaMM float64 // hydrostatic pressure gradient γ (MPa/mm = ρg) for LoadHydrostatic
+	HydroSurfaceZ      float64 // height (mm) of the fluid free surface for LoadHydrostatic
 }
 
 // eigenmodeCount returns the requested number of modes, clamped to a sensible minimum.
@@ -321,6 +328,8 @@ func withInterfaceDefaults(s StudySettings) StudySettings {
 	s.NeoHookeD1 = 0.1  // 1/MPa; bulk K = 20 MPa, moderately compressible to avoid tet locking
 	s.YoungHotGPa = 0   // 0 ⇒ temperature-independent elasticity (a single Young/Poisson)
 	s.HotTempK = 100
+	s.HydroGradientMPaMM = 1e-5 // ~water (ρg ≈ 9.81e-6 MPa/mm), used when LoadType is hydrostatic
+	s.HydroSurfaceZ = 0         // fluid free-surface height (mm); pressure grows below it
 	return s
 }
 

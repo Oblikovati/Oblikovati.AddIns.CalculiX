@@ -141,12 +141,15 @@ type ForceLoad struct {
 	TotalN float64    // total force magnitude (N)
 }
 
-// PressureLoad applies a uniform pressure (MPa) normal to a set of element-faces via a
-// *DLOAD Pn card. Positive pressure pushes into the face (the CalculiX sign convention).
+// PressureLoad applies pressure (MPa) normal to a set of element-faces via a *DLOAD Pn card.
+// Positive pressure pushes into the face (the CalculiX sign convention). The pressure is uniform
+// (MPa) unless PerFaceMPa is set parallel to Faces — used by a depth-varying hydrostatic load,
+// where each face carries the pressure at its own depth.
 type PressureLoad struct {
-	Name  string     // label (diagnostic)
-	Faces []ElemFace // element-faces the pressure acts on
-	MPa   float64    // pressure magnitude (N/mm^2)
+	Name       string     // label (diagnostic)
+	Faces      []ElemFace // element-faces the pressure acts on
+	MPa        float64    // uniform pressure magnitude (N/mm^2); ignored when PerFaceMPa is set
+	PerFaceMPa []float64  // per-face pressure (N/mm^2), parallel to Faces; nil ⇒ uniform MPa
 }
 
 // GravityLoad applies a body force (gravitational acceleration) over the whole model via a
