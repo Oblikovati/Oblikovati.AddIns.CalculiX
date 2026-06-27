@@ -105,11 +105,14 @@ const (
 	HeatDriveFlux HeatDrive = "flux"
 	// HeatDriveFilm applies convective film cooling/heating (*FILM): q = h·(T − T_sink).
 	HeatDriveFilm HeatDrive = "convection"
+	// HeatDriveBody applies a volumetric internal heat generation over the whole body
+	// (*DFLUX BF), with the selected faces held at the prescribed temperature.
+	HeatDriveBody HeatDrive = "body source"
 )
 
 // heatDriveOptions lists the panel dropdown choices in display order.
 func heatDriveOptions() []string {
-	return []string{string(HeatDriveFlux), string(HeatDriveFilm)}
+	return []string{string(HeatDriveFlux), string(HeatDriveFilm), string(HeatDriveBody)}
 }
 
 // standardGravityMMs2 is one g in CalculiX mm/s^2 units.
@@ -165,9 +168,10 @@ type StudySettings struct {
 	Conductivity   float64         // thermal conductivity (consistent units) for heat transfer
 	ColdTempK      float64         // prescribed temperature on the first (support) face (K)
 	HeatFluxQ      float64         // surface heat flux on the remaining faces (heat transfer)
-	HeatDriveMode  HeatDrive       // how the loaded faces of a heat study exchange heat (flux vs convection)
+	HeatDriveMode  HeatDrive       // how the loaded faces of a heat study exchange heat (flux/convection/body)
 	FilmCoeff      float64         // convective film coefficient h (consistent units) for HeatDriveFilm
 	SinkTempK      float64         // ambient/sink temperature for convection (K)
+	BodyHeatRate   float64         // volumetric internal heat generation (consistent units) for HeatDriveBody
 	ResultField    ResultFieldKind // which scalar field a stress result is coloured by
 
 	VoltageV        float64 // prescribed potential on the first face for an electrostatic study (V)
@@ -213,6 +217,7 @@ func defaultSettings() StudySettings {
 		HeatDriveMode:   HeatDriveFlux,
 		FilmCoeff:       0.5,
 		SinkTempK:       0,
+		BodyHeatRate:    1,
 		ResultField:     ResultVonMises,
 		VoltageV:        5,
 		ElectricalSigma: 1,

@@ -386,11 +386,26 @@ func applyThermalBCs(m *AnalysisModel, settings StudySettings, groups *FaceGroup
 	for _, key := range faces[1:] {
 		ef = append(ef, groups.ElemFaces[key]...)
 	}
-	if settings.HeatDriveMode == HeatDriveFilm {
+	switch settings.HeatDriveMode {
+	case HeatDriveFilm:
 		m.Films = []FilmBC{{Name: "FILM", Faces: ef, Coeff: settings.FilmCoeff, SinkTempK: settings.SinkTempK}}
-		return
+	case HeatDriveBody:
+		// Internal generation with the remaining faces also held at the prescribed temperature,
+		// so heat flows out through both ends (the classic generating-slab problem).
+		m.Temperatures = append(m.Temperatures, TemperatureBC{Name: "TEMP2", Nodes: dedupeInts(faceNodes(groups, faces[1:])), TempK: settings.ColdTempK})
+		m.BodyHeat = &BodyHeat{Rate: settings.BodyHeatRate}
+	default:
+		m.HeatFluxes = []HeatFlux{{Name: "FLUX", Faces: ef, Flux: settings.HeatFluxQ}}
 	}
-	m.HeatFluxes = []HeatFlux{{Name: "FLUX", Faces: ef, Flux: settings.HeatFluxQ}}
+}
+
+// faceNodes gathers the node ids of a set of bound faces.
+func faceNodes(groups *FaceGroups, keys []string) []int {
+	var nodes []int
+	for _, key := range keys {
+		nodes = append(nodes, groups.Nodes[key]...)
+	}
+	return nodes
 }
 
 // applyElectrostaticBCs sets an electric-conduction model's boundary conditions, by drive mode:
