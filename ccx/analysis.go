@@ -67,11 +67,14 @@ const (
 	LoadPressure LoadType = "pressure"
 	// LoadGravity applies self-weight over the whole body (*DLOAD GRAV); no loaded face.
 	LoadGravity LoadType = "gravity"
+	// LoadDisplacement enforces a prescribed displacement on the loaded face(s) (a non-zero
+	// *BOUNDARY on DOF 3), pulling/pushing them a set distance instead of applying a force.
+	LoadDisplacement LoadType = "displacement"
 )
 
 // loadTypeOptions lists the panel dropdown choices in display order.
 func loadTypeOptions() []string {
-	return []string{string(LoadForce), string(LoadPressure), string(LoadGravity)}
+	return []string{string(LoadForce), string(LoadPressure), string(LoadGravity), string(LoadDisplacement)}
 }
 
 // EMDrive selects how an electromagnetic (electric-conduction) study is driven.
@@ -129,20 +132,21 @@ type StudySettings struct {
 	ElementOrder ElementOrder // tet element order
 	DeformScale  float64      // displacement magnification for the deformed-shape render; 0 = auto
 
-	YoungGPa     float64         // material Young's modulus (GPa)
-	Poisson      float64         // material Poisson's ratio
-	DensityGCm3  float64         // material density (g/cm^3); used by gravity and frequency
-	LoadType     LoadType        // how the loaded faces are loaded
-	LoadN        float64         // total force on the loaded faces (N), in -Z, for LoadForce
-	PressureMPa  float64         // pressure on the loaded faces (MPa) for LoadPressure
-	GravityG     float64         // gravity as a multiple of standard g for LoadGravity
-	Eigenmodes   int             // number of modes/factors for frequency and buckling analyses
-	ThermalAlpha float64         // thermal expansion coefficient (1/K) for thermomech
-	DeltaK       float64         // temperature change (K) for a thermomech study
-	Conductivity float64         // thermal conductivity (consistent units) for heat transfer
-	ColdTempK    float64         // prescribed temperature on the first (support) face (K)
-	HeatFluxQ    float64         // surface heat flux on the remaining faces (heat transfer)
-	ResultField  ResultFieldKind // which scalar field a stress result is coloured by
+	YoungGPa       float64         // material Young's modulus (GPa)
+	Poisson        float64         // material Poisson's ratio
+	DensityGCm3    float64         // material density (g/cm^3); used by gravity and frequency
+	LoadType       LoadType        // how the loaded faces are loaded
+	LoadN          float64         // total force on the loaded faces (N), in -Z, for LoadForce
+	PressureMPa    float64         // pressure on the loaded faces (MPa) for LoadPressure
+	GravityG       float64         // gravity as a multiple of standard g for LoadGravity
+	DisplacementMM float64         // enforced displacement (mm, +Z) on the loaded faces for LoadDisplacement
+	Eigenmodes     int             // number of modes/factors for frequency and buckling analyses
+	ThermalAlpha   float64         // thermal expansion coefficient (1/K) for thermomech
+	DeltaK         float64         // temperature change (K) for a thermomech study
+	Conductivity   float64         // thermal conductivity (consistent units) for heat transfer
+	ColdTempK      float64         // prescribed temperature on the first (support) face (K)
+	HeatFluxQ      float64         // surface heat flux on the remaining faces (heat transfer)
+	ResultField    ResultFieldKind // which scalar field a stress result is coloured by
 
 	VoltageV        float64 // prescribed potential on the first face for an electrostatic study (V)
 	ElectricalSigma float64 // electrical conductivity (consistent units) for an electrostatic study
@@ -176,6 +180,7 @@ func defaultSettings() StudySettings {
 		LoadN:           100,
 		PressureMPa:     1,
 		GravityG:        1,
+		DisplacementMM:  0.1,
 		Eigenmodes:      6,
 		ThermalAlpha:    1.2e-5,
 		DeltaK:          100,

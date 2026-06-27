@@ -437,6 +437,12 @@ func applyLoad(m *AnalysisModel, settings StudySettings, groups *FaceGroups, loa
 			faces = append(faces, groups.ElemFaces[key]...)
 		}
 		m.Pressures = []PressureLoad{{Name: "LOAD", Faces: faces, MPa: settings.PressureMPa}}
+	case LoadDisplacement:
+		var nodes []int
+		for _, key := range loadFaces {
+			nodes = append(nodes, groups.Nodes[key]...)
+		}
+		m.Displacements = []DisplacementBC{{Name: "PRESCR", Nodes: dedupeInts(nodes), DOF: 3, Value: settings.DisplacementMM}}
 	default: // LoadForce
 		var nodes []int
 		for _, key := range loadFaces {

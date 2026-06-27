@@ -75,6 +75,7 @@ func loadsSection(s StudySettings) []wire.PanelControlSpec {
 		client.PanelTextBox("load", "Force on loaded faces (N)", formatNum(s.LoadN)),
 		client.PanelTextBox("pressure", "Pressure on loaded faces (MPa)", formatNum(s.PressureMPa)),
 		client.PanelTextBox("gravity", "Gravity (× g)", formatNum(s.GravityG)),
+		client.PanelTextBox("displacement", "Enforced displacement (mm, +Z)", formatNum(s.DisplacementMM)),
 		client.PanelTextBox("delta_t", "Temperature change ΔT (K)", formatNum(s.DeltaK)),
 		client.PanelTextBox("cold_temp", "Prescribed temperature (K)", formatNum(s.ColdTempK)),
 		client.PanelTextBox("heat_flux", "Heat flux on loaded faces", formatNum(s.HeatFluxQ)),
@@ -183,6 +184,8 @@ func (e *Engine) applyLoadEdit(controlID, value string) {
 		e.settings.PressureMPa = panelNum(value, e.settings.PressureMPa)
 	case "gravity":
 		e.settings.GravityG = panelNum(value, e.settings.GravityG)
+	case "displacement":
+		e.settings.DisplacementMM = panelNum(value, e.settings.DisplacementMM)
 	default:
 		e.applyFieldBCEdit(controlID, value)
 	}

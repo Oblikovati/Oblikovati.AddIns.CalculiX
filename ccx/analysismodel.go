@@ -56,6 +56,15 @@ type FixedConstraint struct {
 	DOFHigh int    // last constrained DOF (3 for a solid)
 }
 
+// DisplacementBC enforces a prescribed displacement on a node set: a non-zero *BOUNDARY on a
+// single translational DOF, moving the face a set distance (vs a force, which sets the load).
+type DisplacementBC struct {
+	Name  string  // node-set name
+	Nodes []int   // node ids
+	DOF   int     // constrained translational DOF (1..3)
+	Value float64 // enforced displacement (mm)
+}
+
 // ForceLoad applies a total force along Dir, distributed equally as nodal loads over its
 // node set (the standard CalculiX *CLOAD idiom for a face load on solid elements).
 type ForceLoad struct {
@@ -98,6 +107,7 @@ type AnalysisModel struct {
 	Material       MaterialProps     // the (first/only) material; see Sections for multi-material
 	Sections       []MaterialSection // per-body material sections; empty ⇒ single Material over all elements
 	Fixed          []FixedConstraint
+	Displacements  []DisplacementBC
 	Forces         []ForceLoad
 	Pressures      []PressureLoad
 	Gravity        *GravityLoad

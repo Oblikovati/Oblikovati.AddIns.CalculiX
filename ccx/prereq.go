@@ -195,8 +195,15 @@ func hasSupportNodes(m *AnalysisModel) bool {
 	return false
 }
 
-// hasLoad reports whether the model carries any non-zero load.
+// hasLoad reports whether the model carries any non-zero load (surface load, body load,
+// enforced displacement, or thermal load).
 func hasLoad(m *AnalysisModel) bool {
+	return hasSurfaceLoad(m) || hasBodyLoad(m) || hasEnforcedDisplacement(m) ||
+		(m.Thermal != nil && m.Thermal.DeltaK != 0)
+}
+
+// hasSurfaceLoad reports a non-zero force or pressure on some face.
+func hasSurfaceLoad(m *AnalysisModel) bool {
 	for _, f := range m.Forces {
 		if f.TotalN != 0 && len(f.Nodes) > 0 {
 			return true
@@ -207,8 +214,20 @@ func hasLoad(m *AnalysisModel) bool {
 			return true
 		}
 	}
-	if m.Gravity != nil && m.Gravity.Accel != 0 {
-		return true
+	return false
+}
+
+// hasBodyLoad reports a non-zero gravity body force.
+func hasBodyLoad(m *AnalysisModel) bool {
+	return m.Gravity != nil && m.Gravity.Accel != 0
+}
+
+// hasEnforcedDisplacement reports a non-zero prescribed displacement on some nodes.
+func hasEnforcedDisplacement(m *AnalysisModel) bool {
+	for _, dsp := range m.Displacements {
+		if dsp.Value != 0 && len(dsp.Nodes) > 0 {
+			return true
+		}
 	}
-	return m.Thermal != nil && m.Thermal.DeltaK != 0
+	return false
 }
