@@ -15,7 +15,9 @@ type StudyResult struct {
 	FrdPath          string      // the ccx .frd result file
 	NodeCount        int         // mesh node count
 	ElementCount     int         // mesh tet-element count
-	PeakVonMisesMPa  float64     // maximum nodal von Mises stress (static)
+	FieldLabel       string      // the rendered stress-result field ("von Mises stress", …)
+	FieldPeak        float64     // peak value of that field (static)
+	FieldUnit        string      // unit of that field ("MPa" / "mm")
 	MaxDisplacement  float64     // maximum nodal displacement magnitude (mm, static)
 	Modes            []float64   // natural frequencies (Hz) or buckling factors
 	ModeKind         string      // "natural frequencies" / "buckling factors"
@@ -35,8 +37,8 @@ func (r *StudyResult) Summary() string {
 	case len(r.Modes) > 0:
 		return fmt.Sprintf("CalculiX: %d elements, %s: %s", r.ElementCount, r.ModeKind, formatModes(r.Modes, r.ModeUnit))
 	default:
-		return fmt.Sprintf("CalculiX: %d elements, peak von Mises %.1f MPa, max displacement %.3g mm.",
-			r.ElementCount, r.PeakVonMisesMPa, r.MaxDisplacement)
+		return fmt.Sprintf("CalculiX: %d elements, peak %s %.3g %s, max displacement %.3g mm.",
+			r.ElementCount, r.FieldLabel, r.FieldPeak, r.FieldUnit, r.MaxDisplacement)
 	}
 }
 
@@ -163,7 +165,7 @@ func (e *Engine) collectStatic(stem string, mesh *TetMesh, groups *FaceGroups, f
 	if err != nil {
 		return nil, err
 	}
-	peakVM, err := e.renderResult(mesh, res)
+	fieldPeak, label, unit, err := e.renderResult(mesh, res, model.ResultField)
 	if err != nil {
 		return nil, fmt.Errorf("render result: %w", err)
 	}
@@ -174,7 +176,9 @@ func (e *Engine) collectStatic(stem string, mesh *TetMesh, groups *FaceGroups, f
 		FrdPath:          stem + ".frd",
 		NodeCount:        len(mesh.Nodes),
 		ElementCount:     len(mesh.Elements),
-		PeakVonMisesMPa:  peakVM,
+		FieldLabel:       label,
+		FieldPeak:        fieldPeak,
+		FieldUnit:        unit,
 		MaxDisplacement:  peak(dispMagnitude(res)),
 		GraphicsClientID: resultClientID,
 	}, nil
@@ -258,6 +262,7 @@ func buildModel(settings StudySettings, mesh *TetMesh, groups *FaceGroups, faces
 		Mesh:           mesh,
 		Material:       settings.material(),
 		EigenmodeCount: settings.eigenmodeCount(),
+		ResultField:    settings.ResultField,
 	}
 	if settings.Analysis == AnalysisHeatTransfer {
 		applyThermalBCs(m, settings, groups, faces)

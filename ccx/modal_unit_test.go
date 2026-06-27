@@ -9,7 +9,13 @@ import (
 )
 
 func TestStudyResultSummaryStatic(t *testing.T) {
-	r := &StudyResult{ElementCount: 100, PeakVonMisesMPa: 5.9, MaxDisplacement: 0.0064}
+	r := &StudyResult{
+		ElementCount:    100,
+		FieldLabel:      "von Mises stress",
+		FieldPeak:       5.9,
+		FieldUnit:       "MPa",
+		MaxDisplacement: 0.0064,
+	}
 	got := r.Summary()
 	if !strings.Contains(got, "100 elements") || !strings.Contains(got, "von Mises") {
 		t.Errorf("static summary = %q", got)

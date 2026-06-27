@@ -84,6 +84,7 @@ type AnalysisModel struct {
 	Temperatures   []TemperatureBC // prescribed temperatures (heat transfer)
 	HeatFluxes     []HeatFlux      // surface heat fluxes (heat transfer)
 	EigenmodeCount int             // number of modes/factors for *FREQUENCY / *BUCKLE
+	ResultField    ResultFieldKind // which scalar field a stress result is coloured by
 }
 
 // needsDensity reports whether *DENSITY must be written. A gravity body load needs it for
