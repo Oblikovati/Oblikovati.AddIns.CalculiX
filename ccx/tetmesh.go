@@ -10,10 +10,13 @@ type Node struct {
 }
 
 // TetElement is a tetrahedral finite element: a 1-based id and the node ids of its
-// corners. A 4-id element is a linear C3D4; a 10-id element is a quadratic C3D10.
+// corners. A 4-id element is a linear C3D4; a 10-id element is a quadratic C3D10. Body is
+// the source body's index in a merged multi-body mesh (0 for a single-body mesh), used to
+// group elements into per-body material element sets.
 type TetElement struct {
 	ID    int
 	Nodes []int
+	Body  int
 }
 
 // IsQuadratic reports whether this element is a 10-node (C3D10) tetrahedron.

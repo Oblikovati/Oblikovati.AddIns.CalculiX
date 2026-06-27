@@ -5,7 +5,7 @@
   "description": "Integrates CalculiX (ccx) as a finite-element stress-analysis provider: volume-meshes a body, writes a CalculiX input deck for the picked loads and boundary conditions, solves with a headless ccx, and renders the von Mises stress and displacement field back into the viewport as client graphics.",
   "license": "GPL-2.0-only",
   "sourceRepo": "https://github.com/Oblikovati/Oblikovati.AddIns.CalculiX",
-  "apiCompat": "0.91",
+  "apiCompat": "0.92",
   "capabilities": [
     "commands",
     "documents",
