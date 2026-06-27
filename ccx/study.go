@@ -377,15 +377,35 @@ func applyCoupledThermal(m *AnalysisModel, settings StudySettings, groups *FaceG
 	}
 }
 
-// applyThermalBCs sets a heat-transfer model's boundary conditions: a prescribed
-// temperature on the first selected face and a surface heat flux on the rest.
+// applyThermalBCs sets a heat-transfer model's boundary conditions: a prescribed temperature
+// on the first selected face, and on the rest either a surface heat flux (flux drive) or a
+// convective film exchange with the ambient (convection drive).
 func applyThermalBCs(m *AnalysisModel, settings StudySettings, groups *FaceGroups, faces []string) {
 	m.Temperatures = []TemperatureBC{{Name: "TEMP", Nodes: groups.Nodes[faces[0]], TempK: settings.ColdTempK}}
 	var ef []ElemFace
 	for _, key := range faces[1:] {
 		ef = append(ef, groups.ElemFaces[key]...)
 	}
-	m.HeatFluxes = []HeatFlux{{Name: "FLUX", Faces: ef, Flux: settings.HeatFluxQ}}
+	switch settings.HeatDriveMode {
+	case HeatDriveFilm:
+		m.Films = []FilmBC{{Name: "FILM", Faces: ef, Coeff: settings.FilmCoeff, SinkTempK: settings.SinkTempK}}
+	case HeatDriveBody:
+		// Internal generation with the remaining faces also held at the prescribed temperature,
+		// so heat flows out through both ends (the classic generating-slab problem).
+		m.Temperatures = append(m.Temperatures, TemperatureBC{Name: "TEMP2", Nodes: dedupeInts(faceNodes(groups, faces[1:])), TempK: settings.ColdTempK})
+		m.BodyHeat = &BodyHeat{Rate: settings.BodyHeatRate}
+	default:
+		m.HeatFluxes = []HeatFlux{{Name: "FLUX", Faces: ef, Flux: settings.HeatFluxQ}}
+	}
+}
+
+// faceNodes gathers the node ids of a set of bound faces.
+func faceNodes(groups *FaceGroups, keys []string) []int {
+	var nodes []int
+	for _, key := range keys {
+		nodes = append(nodes, groups.Nodes[key]...)
+	}
+	return nodes
 }
 
 // applyElectrostaticBCs sets an electric-conduction model's boundary conditions, by drive mode:
