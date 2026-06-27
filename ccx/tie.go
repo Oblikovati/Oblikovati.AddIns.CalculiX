@@ -19,12 +19,20 @@ type TieConstraint struct {
 	Master []ElemFace
 }
 
-// detectTies finds bonded interfaces in a merged multi-body mesh: pairs of per-body boundary
-// face groups (gmsh surface tags, offset per body in mergeTetMeshes) that are geometrically
-// coincident — same location, opposing outward normals — i.e. two bodies touching along a
-// shared face. Each such pair becomes one *TIE, so the bonded assembly transmits load and an
-// otherwise-unconstrained body is held through the tie. A single-body mesh yields none.
-func detectTies(mesh *TetMesh) []TieConstraint {
+// interfaceMatch is one coincident pair of opposing body boundary faces — the geometric
+// result of interface detection, before it is turned into either a *TIE (bonded) or a
+// *CONTACT PAIR. Slave is the first group's element-faces, master the second's.
+type interfaceMatch struct {
+	Slave  []ElemFace
+	Master []ElemFace
+}
+
+// matchInterfaces finds touching interfaces in a merged multi-body mesh: pairs of per-body
+// boundary face groups (gmsh surface tags, offset per body in mergeTetMeshes) that are
+// geometrically coincident — same location, opposing outward normals — i.e. two bodies
+// touching along a shared face. A single-body mesh yields none. Both the bonded (*TIE) and the
+// contact path consume these matches, so the detection geometry lives in one place.
+func matchInterfaces(mesh *TetMesh) []interfaceMatch {
 	faceIndex := faceElemIndex(mesh)
 	elemBody := elementBodyIndex(mesh)
 	tol := tieMatchTolerance(mesh)
@@ -33,7 +41,7 @@ func detectTies(mesh *TetMesh) []TieConstraint {
 	// either side was patched.
 	groups := mergeCoplanarGroups(tieGroups(mesh, faceIndex, elemBody), mesh, tol)
 
-	var ties []TieConstraint
+	var matches []interfaceMatch
 	used := make([]bool, len(groups))
 	for i := range groups {
 		if used[i] {
@@ -43,14 +51,28 @@ func detectTies(mesh *TetMesh) []TieConstraint {
 			if used[j] || groups[i].body == groups[j].body || !coincidentFaces(groups[i], groups[j], tol) {
 				continue
 			}
-			ties = append(ties, TieConstraint{
-				Name:   fmt.Sprintf("TIE%d", len(ties)),
+			matches = append(matches, interfaceMatch{
 				Slave:  resolveElemFaces(groups[i].facets, faceIndex),
 				Master: resolveElemFaces(groups[j].facets, faceIndex),
 			})
 			used[i], used[j] = true, true
 			break
 		}
+	}
+	return matches
+}
+
+// detectTies turns each touching interface into a *TIE, so a bonded assembly transmits load
+// across the otherwise non-conformal interface and an otherwise-unconstrained body is held.
+func detectTies(mesh *TetMesh) []TieConstraint {
+	matches := matchInterfaces(mesh)
+	ties := make([]TieConstraint, 0, len(matches))
+	for i, m := range matches {
+		ties = append(ties, TieConstraint{
+			Name:   fmt.Sprintf("TIE%d", i),
+			Slave:  m.Slave,
+			Master: m.Master,
+		})
 	}
 	return ties
 }

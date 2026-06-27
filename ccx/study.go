@@ -305,8 +305,8 @@ func buildModel(settings StudySettings, mesh *TetMesh, groups *FaceGroups, faces
 		Sections:       buildSections(mesh, materials),
 		EigenmodeCount: settings.eigenmodeCount(),
 		ResultField:    settings.ResultField,
-		Ties:           detectTies(mesh),
 	}
+	applyInterfaces(m, settings, mesh)
 	if settings.Analysis == AnalysisHeatTransfer {
 		applyThermalBCs(m, settings, groups, faces)
 		return m
@@ -330,6 +330,17 @@ func buildModel(settings StudySettings, mesh *TetMesh, groups *FaceGroups, faces
 		applyLoad(m, settings, groups, faces[1:])
 	}
 	return m
+}
+
+// applyInterfaces binds the touching body interfaces as either unilateral contact (when the
+// study requests contact, with its friction coefficient and a penalty stiffness scaled off the
+// stiffest material) or bonded *TIE (the default). A single-body study yields neither.
+func applyInterfaces(m *AnalysisModel, settings StudySettings, mesh *TetMesh) {
+	if !settings.ContactMode {
+		m.Ties = detectTies(mesh)
+		return
+	}
+	m.Contacts = detectContacts(mesh, settings.FrictionMu, contactStiffnessFactor*m.maxYoungMPa())
 }
 
 // buildSections groups the merged mesh's elements by their source body into per-body
