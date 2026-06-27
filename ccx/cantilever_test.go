@@ -4,8 +4,6 @@ package ccx
 
 import (
 	"math"
-	"os"
-	"path/filepath"
 	"testing"
 )
 
@@ -75,21 +73,9 @@ func meshBeam(t *testing.T, bins solverBinaries, length, side float64, dir strin
 // solveModel writes the deck, runs ccx, and parses the result field.
 func solveModel(t *testing.T, bins solverBinaries, model *AnalysisModel, dir string) *ResultField {
 	t.Helper()
-	stem := filepath.Join(dir, "beam")
-	if err := writeFile(stem+".inp", func(f *os.File) error { return WriteDeck(f, model) }); err != nil {
-		t.Fatalf("write deck: %v", err)
-	}
-	if err := runCcx(bins.ccx, stem); err != nil {
+	res, err := solveStudyDeck(bins, model, dir)
+	if err != nil {
 		t.Fatalf("solve: %v", err)
-	}
-	f, err := os.Open(stem + ".frd")
-	if err != nil {
-		t.Fatalf("open frd: %v", err)
-	}
-	defer f.Close()
-	res, err := parseFRD(f)
-	if err != nil {
-		t.Fatalf("parse frd: %v", err)
 	}
 	return res
 }

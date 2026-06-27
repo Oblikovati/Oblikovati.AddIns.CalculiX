@@ -25,7 +25,14 @@ func (e *Engine) pullSurface(bodyIndex int) (*SurfaceMesh, error) {
 		return nil, fmt.Errorf("calculate facets for body %d: %w", bodyIndex, err)
 	}
 	coords := scaleCoords(facets.VertexCoordinates, modelUnitMM)
-	return weldSurface(coords, facets.VertexIndices)
+	surface, err := weldSurface(coords, facets.VertexIndices)
+	if err != nil {
+		return nil, err
+	}
+	if open := surface.openEdges(); open > 0 {
+		return nil, fmt.Errorf("the body surface is not watertight (%d open/non-manifold edges); it cannot be meshed into a solid", open)
+	}
+	return surface, nil
 }
 
 // pullFaceFacets fetches the triangulation of a single B-rep face (by reference key) in

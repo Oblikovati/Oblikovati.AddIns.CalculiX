@@ -68,16 +68,16 @@ func runGmsh(gmsh, geoPath, outPath string) error {
 }
 
 // runCcx runs the solver on the deck stem (the .inp basename without extension), writing
-// <stem>.frd / <stem>.dat. OMP_NUM_THREADS is set so ccx uses the available cores; ccx is
-// sensitive to the working directory, so it runs in the deck's directory.
-func runCcx(ccx, stem string) error {
+// <stem>.frd / <stem>.dat, and returns the combined solver output (always — the caller
+// scrapes it for *ERROR diagnostics, which ccx may print regardless of the exit code).
+// OMP_NUM_THREADS is set so ccx uses the available cores; ccx is sensitive to the working
+// directory, so it runs in the deck's directory.
+func runCcx(ccx, stem string) (string, error) {
 	cmd := exec.Command(ccx, "-i", filepath.Base(stem))
 	cmd.Dir = filepath.Dir(stem)
 	cmd.Env = append(os.Environ(), "OMP_NUM_THREADS="+strconv.Itoa(runtime.NumCPU()))
-	if out, err := cmd.CombinedOutput(); err != nil {
-		return fmt.Errorf("ccx solve %s: %w: %s", stem, err, out)
-	}
-	return nil
+	out, err := cmd.CombinedOutput()
+	return string(out), err
 }
 
 // writeFile creates path and hands the open file to write, ensuring it is closed.

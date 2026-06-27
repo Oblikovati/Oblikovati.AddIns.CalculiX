@@ -93,20 +93,28 @@ func (e *Engine) launchStudy() {
 	e.running = true
 	e.mu.Unlock()
 
-	go func() {
-		defer func() {
-			e.mu.Lock()
-			e.running = false
-			e.mu.Unlock()
-		}()
-		res, err := e.RunStudyOnHost()
-		if err != nil {
-			e.reportStatus("CalculiX study failed: " + err.Error())
-			return
+	go e.runAndReport()
+}
+
+// runAndReport runs one study and reports its outcome, recovering from any panic in the
+// pipeline so a bug cannot take down the in-process host — the failure is surfaced on the
+// status bar instead.
+func (e *Engine) runAndReport() {
+	defer func() {
+		e.mu.Lock()
+		e.running = false
+		e.mu.Unlock()
+		if r := recover(); r != nil {
+			e.reportStatus(fmt.Sprintf("CalculiX study crashed: %v", r))
 		}
-		e.reportStatus(fmt.Sprintf("CalculiX: %d elements, peak von Mises %.1f MPa, max displacement %.3g mm.",
-			res.ElementCount, res.PeakVonMisesMPa, res.MaxDisplacement))
 	}()
+	res, err := e.RunStudyOnHost()
+	if err != nil {
+		e.reportStatus("CalculiX study failed: " + err.Error())
+		return
+	}
+	e.reportStatus(fmt.Sprintf("CalculiX: %d elements, peak von Mises %.1f MPa, max displacement %.3g mm.",
+		res.ElementCount, res.PeakVonMisesMPa, res.MaxDisplacement))
 }
 
 // reportStatus surfaces a study's outcome on the host status bar (best-effort: a status

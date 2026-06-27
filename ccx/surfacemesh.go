@@ -97,6 +97,33 @@ func weldEpsilon(coords []float64) float64 {
 	return diag * weldEpsilonFraction
 }
 
+// openEdges counts the edges of the welded surface that are NOT shared by exactly two
+// triangles. A watertight manifold surface has zero such edges; any other count means the
+// surface has a hole or a non-manifold junction and cannot be filled into a solid volume.
+func (m *SurfaceMesh) openEdges() int {
+	count := make(map[[2]int]int, len(m.Tris)*3)
+	for _, t := range m.Tris {
+		count[edgeKey(t[0], t[1])]++
+		count[edgeKey(t[1], t[2])]++
+		count[edgeKey(t[2], t[0])]++
+	}
+	bad := 0
+	for _, c := range count {
+		if c != 2 {
+			bad++
+		}
+	}
+	return bad
+}
+
+// edgeKey is the order-independent key for an undirected edge.
+func edgeKey(a, b int) [2]int {
+	if a < b {
+		return [2]int{a, b}
+	}
+	return [2]int{b, a}
+}
+
 // writeSTL writes the surface as an ASCII STL (gmsh's Merge reads this), computing a
 // facet normal per triangle. The single solid is named "part".
 func (m *SurfaceMesh) writeSTL(w io.Writer) error {
