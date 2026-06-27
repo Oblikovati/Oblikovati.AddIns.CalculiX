@@ -1,0 +1,157 @@
+name: CI
+
+on:
+  push:
+    branches: [main, develop]
+  pull_request:
+
+permissions:
+  contents: read
+
+defaults:
+  run:
+    # bash on every OS for consistent shell semantics (Windows' default pwsh
+    # mangles `gotestsum -- -coverprofile=...` and the inline build script).
+    shell: bash
+
+# The oblikovati-calculix add-in (module oblikovati.org/calculix). The SHIPPED c-shared
+# library links only the Apache-2.0 contract (oblikovati.org/api), pinned in go.mod to the
+# latest published API release; the GPL application module (oblikovati.org) is pulled in
+# solely by the add-in<->host integration tests. Both are sibling repos wired by the local
+# .github/actions/siblings composite (ADR-0018), which checks api out at the pinned release
+# so CI validates against exactly what ships.
+jobs:
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-go@v6
+        with:
+          go-version-file: go.mod
+          cache: false
+      - uses: ./.github/actions/siblings
+      - uses: golangci/golangci-lint-action@9fae48acfc02a90574d7c304a1758ef9895495fa # v7
+        with:
+          version: v2.1.0
+
+  # SPDX: every Go file in this GPL repo must carry GPL-2.0-only.
+  spdx:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - run: python3 scripts/add-spdx-headers.py --check
+
+  # Tier 1 — cgo-free unit + add-in<->host integration tests on every OS. The host's
+  # headless core is pure Go, so the integration tests (which drive the live
+  # router/model) run with CGO_ENABLED=0 on all three platforms.
+  test:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]
+    runs-on: ${{ matrix.os }}
+    env:
+      CGO_ENABLED: "0"
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-go@v6
+        with:
+          go-version-file: go.mod
+          cache: false
+      - uses: ./.github/actions/siblings
+      - run: go install gotest.tools/gotestsum@v1.12.0
+      - name: Test
+        run: gotestsum --junitfile test-results-${{ matrix.os }}.xml -- -coverprofile=coverage.out -covermode=count ./ccx/...
+      - uses: actions/upload-artifact@v6
+        if: always()
+        with:
+          name: test-results-${{ matrix.os }}
+          path: test-results-${{ matrix.os }}.xml
+
+  # Race detector needs cgo; Linux only. Runs the ccx package (the root c-shared
+  # package has no tests).
+  race:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-go@v6
+        with:
+          go-version-file: go.mod
+          cache: false
+      - uses: ./.github/actions/siblings
+      - run: go test -race ./ccx/...
+
+  # Build the SHIPPED add-in: the cgo c-shared library (.so/.dll/.dylib) on every OS.
+  build:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]
+    runs-on: ${{ matrix.os }}
+    env:
+      CGO_ENABLED: "1"
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-go@v6
+        with:
+          go-version-file: go.mod
+          cache: false
+      - uses: ./.github/actions/siblings
+      - name: Build c-shared library
+        run: |
+          EXT=so
+          [ "$RUNNER_OS" = "Windows" ] && EXT=dll
+          [ "$RUNNER_OS" = "macOS" ] && EXT=dylib
+          echo "building oblikovati-calculix.$EXT"
+          mkdir -p build
+          go build -buildmode=c-shared -o "build/oblikovati-calculix.$EXT" .
+      - uses: actions/upload-artifact@v6
+        with:
+          name: oblikovati-calculix-${{ matrix.os }}
+          path: build/oblikovati-calculix.*
+
+  # Build the vendored solver toolchain from source — CalculiX 2.22 (SPOOLES + reference
+  # LAPACK/BLAS + arpack-ng) and gmsh 4.13.1 — and validate each: ccx solves a known
+  # uniaxial deck exactly, and gmsh tetrahedralizes a box STL. This is the self-contained,
+  # no-external-dependency toolchain the add-in ships and runs as subprocesses
+  # (vendor-src/{ccx,gmsh}/NOTICE.md).
+  solvers:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v5
+      - name: Install build toolchain (Linux)
+        if: runner.os == 'Linux'
+        run: sudo apt-get update && sudo apt-get install -y gfortran cmake
+      - name: Install build toolchain (macOS)
+        if: runner.os == 'macOS'
+        run: brew install gcc cmake
+      - name: Build vendored ccx + gmsh
+        run: make build-solvers
+      - name: Validate ccx solves the uniaxial deck (u_x must equal 1.0E-03)
+        run: |
+          set -euo pipefail
+          test -x vendor-src/ccx/build/ccx
+          cp vendor-src/ccx/test/cube.inp .
+          ./vendor-src/ccx/build/ccx -i cube
+          ux=$(awk '/ -4  DISP/{f=1} f&&/^ -1 +2 /{print $3; exit}' cube.frd)
+          echo "loaded-node u_x = $ux (expected 1.00000E-03)"
+          [ "$ux" = "1.00000E-03" ] || { echo "FAIL: wrong displacement"; exit 1; }
+      - name: Validate gmsh tetrahedralizes a box STL
+        run: |
+          set -euo pipefail
+          test -x vendor-src/gmsh/build/gmsh
+          cp vendor-src/gmsh/test/box.stl vendor-src/gmsh/test/box.geo .
+          ./vendor-src/gmsh/build/gmsh box.geo -3 -format msh2 -o box.msh
+          tets=$(awk '/\$Elements/{f=1;next} /\$EndElements/{f=0} f&&$2==11{n++} END{print n+0}' box.msh)
+          echo "C3D10 tets = $tets"
+          [ "$tets" -ge 1 ] || { echo "FAIL: gmsh produced no tets"; exit 1; }
+      - uses: actions/upload-artifact@v6
+        with:
+          name: solvers-${{ matrix.os }}
+          path: |
+            vendor-src/ccx/build/ccx
+            vendor-src/gmsh/build/gmsh
