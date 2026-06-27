@@ -97,6 +97,7 @@ type AnalysisModel struct {
 	HeatFluxes     []HeatFlux      // surface heat fluxes (heat transfer)
 	EigenmodeCount int             // number of modes/factors for *FREQUENCY / *BUCKLE
 	ResultField    ResultFieldKind // which scalar field a stress result is coloured by
+	Ties           []TieConstraint // bonded interfaces between touching bodies (*TIE)
 }
 
 // sections returns the model's material sections, deriving a single section over every
