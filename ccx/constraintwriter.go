@@ -39,6 +39,9 @@ func constraintWriters(m *AnalysisModel) []ConstraintWriter {
 	for i := range m.HeatFluxes {
 		cs = append(cs, heatFluxWriter{c: &m.HeatFluxes[i]})
 	}
+	for i := range m.Films {
+		cs = append(cs, filmWriter{c: &m.Films[i]})
+	}
 	return cs
 }
 

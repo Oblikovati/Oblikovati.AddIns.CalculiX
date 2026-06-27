@@ -40,6 +40,15 @@ type HeatFlux struct {
 	Flux  float64
 }
 
+// FilmBC applies convective film heat exchange to a set of element-faces (*FILM Fn) for a
+// heat-transfer analysis: each face exchanges q = Coeff·(T − SinkTempK) with the ambient.
+type FilmBC struct {
+	Name      string
+	Faces     []ElemFace
+	Coeff     float64 // film coefficient h
+	SinkTempK float64 // ambient/sink temperature
+}
+
 // ThermalLoad applies a uniform temperature change over the whole body for an uncoupled
 // thermal-stress analysis: a *TEMPERATURE field in the step, relative to a stress-free
 // reference of zero, producing thermal expansion against the material's *EXPANSION.
@@ -113,6 +122,7 @@ type AnalysisModel struct {
 	Thermal        *ThermalLoad
 	Temperatures   []TemperatureBC // prescribed temperatures (heat transfer)
 	HeatFluxes     []HeatFlux      // surface heat fluxes (heat transfer)
+	Films          []FilmBC        // convective film exchanges (heat transfer)
 	EigenmodeCount int             // number of modes/factors for *FREQUENCY / *BUCKLE
 	ResultField    ResultFieldKind // which scalar field a stress result is coloured by
 	Ties           []TieConstraint // bonded interfaces between touching bodies (*TIE)

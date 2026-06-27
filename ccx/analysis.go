@@ -94,6 +94,21 @@ func emDriveOptions() []string {
 	return []string{string(EMVoltage), string(EMCurrent)}
 }
 
+// HeatDrive selects how the loaded faces of a heat-transfer study exchange heat.
+type HeatDrive string
+
+const (
+	// HeatDriveFlux applies a fixed surface heat flux (*DFLUX).
+	HeatDriveFlux HeatDrive = "flux"
+	// HeatDriveFilm applies convective film cooling/heating (*FILM): q = h·(T − T_sink).
+	HeatDriveFilm HeatDrive = "convection"
+)
+
+// heatDriveOptions lists the panel dropdown choices in display order.
+func heatDriveOptions() []string {
+	return []string{string(HeatDriveFlux), string(HeatDriveFilm)}
+}
+
 // standardGravityMMs2 is one g in CalculiX mm/s^2 units.
 const standardGravityMMs2 = 9810.0
 
@@ -132,21 +147,24 @@ type StudySettings struct {
 	ElementOrder ElementOrder // tet element order
 	DeformScale  float64      // displacement magnification for the deformed-shape render; 0 = auto
 
-	YoungGPa     float64         // material Young's modulus (GPa)
-	Poisson      float64         // material Poisson's ratio
-	DensityGCm3  float64         // material density (g/cm^3); used by gravity and frequency
-	LoadType     LoadType        // how the loaded faces are loaded
-	LoadN        float64         // total force on the loaded faces (N), in -Z, for LoadForce
-	PressureMPa  float64         // pressure on the loaded faces (MPa) for LoadPressure
-	GravityG     float64         // gravity as a multiple of standard g for LoadGravity
-	RotationRadS float64         // angular velocity (rad/s) about the Z axis for LoadCentrifugal
-	Eigenmodes   int             // number of modes/factors for frequency and buckling analyses
-	ThermalAlpha float64         // thermal expansion coefficient (1/K) for thermomech
-	DeltaK       float64         // temperature change (K) for a thermomech study
-	Conductivity float64         // thermal conductivity (consistent units) for heat transfer
-	ColdTempK    float64         // prescribed temperature on the first (support) face (K)
-	HeatFluxQ    float64         // surface heat flux on the remaining faces (heat transfer)
-	ResultField  ResultFieldKind // which scalar field a stress result is coloured by
+	YoungGPa      float64         // material Young's modulus (GPa)
+	Poisson       float64         // material Poisson's ratio
+	DensityGCm3   float64         // material density (g/cm^3); used by gravity and frequency
+	LoadType      LoadType        // how the loaded faces are loaded
+	LoadN         float64         // total force on the loaded faces (N), in -Z, for LoadForce
+	PressureMPa   float64         // pressure on the loaded faces (MPa) for LoadPressure
+	GravityG      float64         // gravity as a multiple of standard g for LoadGravity
+	RotationRadS  float64         // angular velocity (rad/s) about the Z axis for LoadCentrifugal
+	Eigenmodes    int             // number of modes/factors for frequency and buckling analyses
+	ThermalAlpha  float64         // thermal expansion coefficient (1/K) for thermomech
+	DeltaK        float64         // temperature change (K) for a thermomech study
+	Conductivity  float64         // thermal conductivity (consistent units) for heat transfer
+	ColdTempK     float64         // prescribed temperature on the first (support) face (K)
+	HeatFluxQ     float64         // surface heat flux on the remaining faces (heat transfer)
+	HeatDriveMode HeatDrive       // how the loaded faces of a heat study exchange heat (flux vs convection)
+	FilmCoeff     float64         // convective film coefficient h (consistent units) for HeatDriveFilm
+	SinkTempK     float64         // ambient/sink temperature for convection (K)
+	ResultField   ResultFieldKind // which scalar field a stress result is coloured by
 
 	VoltageV        float64 // prescribed potential on the first face for an electrostatic study (V)
 	ElectricalSigma float64 // electrical conductivity (consistent units) for an electrostatic study
@@ -187,6 +205,9 @@ func defaultSettings() StudySettings {
 		Conductivity:    50,
 		ColdTempK:       0,
 		HeatFluxQ:       50,
+		HeatDriveMode:   HeatDriveFlux,
+		FilmCoeff:       0.5,
+		SinkTempK:       0,
 		ResultField:     ResultVonMises,
 		VoltageV:        5,
 		ElectricalSigma: 1,

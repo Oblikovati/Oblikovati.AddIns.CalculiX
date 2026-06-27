@@ -78,7 +78,10 @@ func loadsSection(s StudySettings) []wire.PanelControlSpec {
 		client.PanelTextBox("rotation", "Rotation about Z (rad/s)", formatNum(s.RotationRadS)),
 		client.PanelTextBox("delta_t", "Temperature change ΔT (K)", formatNum(s.DeltaK)),
 		client.PanelTextBox("cold_temp", "Prescribed temperature (K)", formatNum(s.ColdTempK)),
+		client.PanelDropdown("heat_drive", "Heat drive", heatDriveOptions(), string(s.HeatDriveMode)),
 		client.PanelTextBox("heat_flux", "Heat flux on loaded faces", formatNum(s.HeatFluxQ)),
+		client.PanelTextBox("film_coeff", "Film coefficient (convection)", formatNum(s.FilmCoeff)),
+		client.PanelTextBox("sink_temp", "Ambient/sink temperature (K)", formatNum(s.SinkTempK)),
 		client.PanelDropdown("em_drive", "EM drive", emDriveOptions(), string(s.EMDriveMode)),
 		client.PanelTextBox("voltage", "Applied voltage on first face (V)", formatNum(s.VoltageV)),
 		client.PanelTextBox("current_density", "Injected current density", formatNum(s.CurrentDensity)),
@@ -200,6 +203,12 @@ func (e *Engine) applyFieldBCEdit(controlID, value string) {
 		e.settings.ColdTempK = panelNum(value, e.settings.ColdTempK)
 	case "heat_flux":
 		e.settings.HeatFluxQ = panelNum(value, e.settings.HeatFluxQ)
+	case "heat_drive":
+		e.settings.HeatDriveMode = HeatDrive(strings.TrimSpace(value))
+	case "film_coeff":
+		e.settings.FilmCoeff = panelNum(value, e.settings.FilmCoeff)
+	case "sink_temp":
+		e.settings.SinkTempK = panelNum(value, e.settings.SinkTempK)
 	case "voltage":
 		e.settings.VoltageV = panelNum(value, e.settings.VoltageV)
 	case "em_drive":
