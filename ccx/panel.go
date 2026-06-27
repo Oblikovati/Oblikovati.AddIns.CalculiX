@@ -82,6 +82,7 @@ func loadsSection(s StudySettings) []wire.PanelControlSpec {
 		client.PanelTextBox("heat_flux", "Heat flux on loaded faces", formatNum(s.HeatFluxQ)),
 		client.PanelTextBox("film_coeff", "Film coefficient (convection)", formatNum(s.FilmCoeff)),
 		client.PanelTextBox("sink_temp", "Ambient/sink temperature (K)", formatNum(s.SinkTempK)),
+		client.PanelTextBox("body_heat", "Body heat generation (volumetric)", formatNum(s.BodyHeatRate)),
 		client.PanelDropdown("em_drive", "EM drive", emDriveOptions(), string(s.EMDriveMode)),
 		client.PanelTextBox("voltage", "Applied voltage on first face (V)", formatNum(s.VoltageV)),
 		client.PanelTextBox("current_density", "Injected current density", formatNum(s.CurrentDensity)),
@@ -194,7 +195,8 @@ func (e *Engine) applyLoadEdit(controlID, value string) {
 	}
 }
 
-// applyFieldBCEdit handles the thermal and electromagnetic boundary-condition controls.
+// applyFieldBCEdit handles the thermal boundary-condition controls, delegating the
+// electromagnetic controls to applyEMEdit.
 func (e *Engine) applyFieldBCEdit(controlID, value string) {
 	switch controlID {
 	case "delta_t":
@@ -209,6 +211,16 @@ func (e *Engine) applyFieldBCEdit(controlID, value string) {
 		e.settings.FilmCoeff = panelNum(value, e.settings.FilmCoeff)
 	case "sink_temp":
 		e.settings.SinkTempK = panelNum(value, e.settings.SinkTempK)
+	case "body_heat":
+		e.settings.BodyHeatRate = panelNum(value, e.settings.BodyHeatRate)
+	default:
+		e.applyEMEdit(controlID, value)
+	}
+}
+
+// applyEMEdit handles the electromagnetic boundary-condition controls.
+func (e *Engine) applyEMEdit(controlID, value string) {
+	switch controlID {
 	case "voltage":
 		e.settings.VoltageV = panelNum(value, e.settings.VoltageV)
 	case "em_drive":

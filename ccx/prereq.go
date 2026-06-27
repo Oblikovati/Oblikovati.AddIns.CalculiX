@@ -95,6 +95,12 @@ func checkHeatPrerequisites(m *AnalysisModel) error {
 		}
 		return nil
 	}
+	if m.BodyHeat != nil {
+		if m.BodyHeat.Rate == 0 {
+			return errors.New("no internal heat — set a non-zero body heat generation rate")
+		}
+		return nil
+	}
 	if !hasHeatSource(m) {
 		return errors.New("no heat source — set a non-zero heat flux on the loaded face(s)")
 	}
