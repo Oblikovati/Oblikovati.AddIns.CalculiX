@@ -52,6 +52,7 @@ func WriteDeck(w io.Writer, m *AnalysisModel) error {
 	}
 	writeTies(d, m.Ties)
 	writeInitialTemperature(d, m)
+	writePhysicalConstants(d, m)
 	writeStepBegin(d, m)
 	for _, c := range cons {
 		c.WriteStep(d)

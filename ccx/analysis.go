@@ -108,11 +108,13 @@ const (
 	// HeatDriveBody applies a volumetric internal heat generation over the whole body
 	// (*DFLUX BF), with the selected faces held at the prescribed temperature.
 	HeatDriveBody HeatDrive = "body source"
+	// HeatDriveRadiation applies radiative exchange (*RADIATE): q = ε·σ·(T⁴ − T_amb⁴).
+	HeatDriveRadiation HeatDrive = "radiation"
 )
 
 // heatDriveOptions lists the panel dropdown choices in display order.
 func heatDriveOptions() []string {
-	return []string{string(HeatDriveFlux), string(HeatDriveFilm), string(HeatDriveBody)}
+	return []string{string(HeatDriveFlux), string(HeatDriveFilm), string(HeatDriveBody), string(HeatDriveRadiation)}
 }
 
 // standardGravityMMs2 is one g in CalculiX mm/s^2 units.
@@ -172,6 +174,8 @@ type StudySettings struct {
 	FilmCoeff      float64         // convective film coefficient h (consistent units) for HeatDriveFilm
 	SinkTempK      float64         // ambient/sink temperature for convection (K)
 	BodyHeatRate   float64         // volumetric internal heat generation (consistent units) for HeatDriveBody
+	Emissivity     float64         // surface emissivity (0..1) for HeatDriveRadiation
+	RadAmbientK    float64         // ambient temperature radiated to (K) for HeatDriveRadiation
 	ResultField    ResultFieldKind // which scalar field a stress result is coloured by
 
 	VoltageV        float64 // prescribed potential on the first face for an electrostatic study (V)
@@ -194,38 +198,47 @@ func (s StudySettings) eigenmodeCount() int {
 // defaultSettings returns the v1 defaults: linear-static, quadratic tets, auto sizing,
 // mild-steel-like material, and a unit force load.
 func defaultSettings() StudySettings {
-	return StudySettings{
-		Analysis:        AnalysisStatic,
-		MeshSizeMM:      0,
-		ElementOrder:    QuadraticTet,
-		DeformScale:     0,
-		YoungGPa:        210,
-		Poisson:         0.3,
-		DensityGCm3:     7.85,
-		LoadType:        LoadForce,
-		LoadN:           100,
-		PressureMPa:     1,
-		GravityG:        1,
-		RotationRadS:    100,
-		DisplacementMM:  0.1,
-		Eigenmodes:      6,
-		ThermalAlpha:    1.2e-5,
-		DeltaK:          100,
-		Conductivity:    50,
-		ColdTempK:       0,
-		HeatFluxQ:       50,
-		HeatDriveMode:   HeatDriveFlux,
-		FilmCoeff:       0.5,
-		SinkTempK:       0,
-		BodyHeatRate:    1,
-		ResultField:     ResultVonMises,
-		VoltageV:        5,
-		ElectricalSigma: 1,
-		EMDriveMode:     EMVoltage,
-		CurrentDensity:  1,
-		SpecificHeat:    5e8, // steel-like, consistent units (mm,t,s): ~0.5 J/(g·K)
-		TransientTimeS:  0,   // steady state by default
+	s := StudySettings{
+		Analysis:       AnalysisStatic,
+		MeshSizeMM:     0,
+		ElementOrder:   QuadraticTet,
+		DeformScale:    0,
+		YoungGPa:       210,
+		Poisson:        0.3,
+		DensityGCm3:    7.85,
+		LoadType:       LoadForce,
+		LoadN:          100,
+		PressureMPa:    1,
+		GravityG:       1,
+		RotationRadS:   100,
+		DisplacementMM: 0.1,
+		Eigenmodes:     6,
+		ResultField:    ResultVonMises,
 	}
+	return withFieldDefaults(s)
+}
+
+// withFieldDefaults fills the thermal, heat-drive, electromagnetic, and transient default
+// parameters (kept out of defaultSettings to keep each function small).
+func withFieldDefaults(s StudySettings) StudySettings {
+	s.ThermalAlpha = 1.2e-5
+	s.DeltaK = 100
+	s.Conductivity = 50
+	s.ColdTempK = 0
+	s.HeatFluxQ = 50
+	s.HeatDriveMode = HeatDriveFlux
+	s.FilmCoeff = 0.5
+	s.SinkTempK = 0
+	s.BodyHeatRate = 1
+	s.Emissivity = 0.8
+	s.RadAmbientK = 300
+	s.VoltageV = 5
+	s.ElectricalSigma = 1
+	s.EMDriveMode = EMVoltage
+	s.CurrentDensity = 1
+	s.SpecificHeat = 5e8 // steel-like, consistent units (mm,t,s): ~0.5 J/(g·K)
+	s.TransientTimeS = 0 // steady state by default
+	return s
 }
 
 // material returns the settings' material as CalculiX-unit elastic properties (density in
