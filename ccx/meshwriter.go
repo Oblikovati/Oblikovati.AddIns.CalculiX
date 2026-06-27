@@ -30,6 +30,23 @@ func writeMesh(d *deckBuf, mesh *TetMesh, sections []MaterialSection) {
 			}
 		}
 	}
+	writeAllElementsSet(d, sections)
+}
+
+// writeAllElementsSet defines the Eall set spanning every element, so a body load (gravity,
+// centrifugal) can address the whole model. When the per-body sections already use a single
+// Eall set (the uniform-material case), Eall is defined by the *ELEMENT block and nothing more
+// is needed; a multi-body mesh unites its per-body sets (Eb0, Eb1, …) into Eall here.
+func writeAllElementsSet(d *deckBuf, sections []MaterialSection) {
+	for _, sec := range sections {
+		if sec.ElsetName == allElementsSet {
+			return
+		}
+	}
+	d.line("*ELSET, ELSET=%s", allElementsSet)
+	for _, sec := range sections {
+		d.line("%s", sec.ElsetName)
+	}
 }
 
 // elementByID indexes a mesh's elements by id, so a section's element-id list resolves to
