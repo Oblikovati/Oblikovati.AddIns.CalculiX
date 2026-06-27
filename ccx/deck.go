@@ -58,7 +58,7 @@ func WriteDeck(w io.Writer, m *AnalysisModel) error {
 	for _, c := range cons {
 		c.WriteStep(d)
 	}
-	writeStepOutput(d, m.Analysis)
+	writeStepOutput(d, m)
 	writeStepEnd(d)
 	return d.flush()
 }

@@ -6,6 +6,7 @@ import (
 	"bufio"
 	"fmt"
 	"io"
+	"math"
 	"strconv"
 	"strings"
 )
@@ -99,6 +100,58 @@ func datRow(line string, minCols int) ([]float64, bool) {
 		vals[i] = v
 	}
 	return vals, true
+}
+
+// reactionHeading is the despaced banner CalculiX prints before a *NODE PRINT TOTALS=ONLY RF
+// block: "total force (fx,fy,fz) for set <NAME> and time ...".
+const reactionHeading = "totalforce(fx,fy,fz)"
+
+// parseTotalReaction reads the total support reaction vector (fx, fy, fz) from a static .dat
+// file's *NODE PRINT TOTALS=ONLY block. Returns the first such total (one clamped support),
+// or an error when the deck requested no reaction print.
+func parseTotalReaction(r io.Reader) ([3]float64, error) {
+	sc := bufio.NewScanner(r)
+	sc.Buffer(make([]byte, 1024*1024), 8*1024*1024)
+	seen := false
+	for sc.Scan() {
+		line := sc.Text()
+		if !seen {
+			if strings.Contains(despace(line), reactionHeading) {
+				seen = true
+			}
+			continue
+		}
+		if v, ok := reactionRow(line); ok {
+			return v, nil
+		}
+	}
+	if err := sc.Err(); err != nil {
+		return [3]float64{}, fmt.Errorf("read dat: %w", err)
+	}
+	return [3]float64{}, fmt.Errorf("no total-reaction (%q) block in the .dat file", reactionHeading)
+}
+
+// reactionRow parses the three force components of a total-reaction line (all floats — unlike a
+// mode-table row, there is no leading integer index).
+func reactionRow(line string) ([3]float64, bool) {
+	fields := strings.Fields(line)
+	if len(fields) < 3 {
+		return [3]float64{}, false
+	}
+	var v [3]float64
+	for i := 0; i < 3; i++ {
+		x, err := strconv.ParseFloat(fields[i], 64)
+		if err != nil {
+			return [3]float64{}, false
+		}
+		v[i] = x
+	}
+	return v, true
+}
+
+// reactionMagnitude returns the Euclidean magnitude of a reaction force vector.
+func reactionMagnitude(v [3]float64) float64 {
+	return math.Sqrt(v[0]*v[0] + v[1]*v[1] + v[2]*v[2])
 }
 
 // despace removes all spaces, so a spaced-out CalculiX banner heading matches a plain key.
