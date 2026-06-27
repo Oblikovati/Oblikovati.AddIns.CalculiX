@@ -66,6 +66,31 @@ func loadTypeOptions() []string {
 // standardGravityMMs2 is one g in CalculiX mm/s^2 units.
 const standardGravityMMs2 = 9810.0
 
+// ResultFieldKind selects which scalar field a stress (static/thermal-stress) result is
+// coloured by.
+type ResultFieldKind string
+
+const (
+	// ResultVonMises colours by von Mises equivalent stress (the default).
+	ResultVonMises ResultFieldKind = "von Mises stress"
+	// ResultDisplacement colours by displacement magnitude.
+	ResultDisplacement ResultFieldKind = "displacement"
+	// ResultMaxPrincipal colours by the maximum (most tensile) principal stress.
+	ResultMaxPrincipal ResultFieldKind = "max principal stress"
+	// ResultMinPrincipal colours by the minimum (most compressive) principal stress.
+	ResultMinPrincipal ResultFieldKind = "min principal stress"
+)
+
+// resultFieldOptions lists the panel dropdown choices in display order.
+func resultFieldOptions() []string {
+	return []string{
+		string(ResultVonMises),
+		string(ResultDisplacement),
+		string(ResultMaxPrincipal),
+		string(ResultMinPrincipal),
+	}
+}
+
 // StudySettings holds the panel-editable study parameters. Which faces carry the load
 // vs the support is resolved from the host selection at run time (first selected face is
 // the fixed support, the rest carry the load); the load magnitude and the material come
@@ -76,19 +101,20 @@ type StudySettings struct {
 	ElementOrder ElementOrder // tet element order
 	DeformScale  float64      // displacement magnification for the deformed-shape render; 0 = auto
 
-	YoungGPa     float64  // material Young's modulus (GPa)
-	Poisson      float64  // material Poisson's ratio
-	DensityGCm3  float64  // material density (g/cm^3); used by gravity and frequency
-	LoadType     LoadType // how the loaded faces are loaded
-	LoadN        float64  // total force on the loaded faces (N), in -Z, for LoadForce
-	PressureMPa  float64  // pressure on the loaded faces (MPa) for LoadPressure
-	GravityG     float64  // gravity as a multiple of standard g for LoadGravity
-	Eigenmodes   int      // number of modes/factors for frequency and buckling analyses
-	ThermalAlpha float64  // thermal expansion coefficient (1/K) for thermomech
-	DeltaK       float64  // temperature change (K) for a thermomech study
-	Conductivity float64  // thermal conductivity (consistent units) for heat transfer
-	ColdTempK    float64  // prescribed temperature on the first (support) face (K)
-	HeatFluxQ    float64  // surface heat flux on the remaining faces (heat transfer)
+	YoungGPa     float64         // material Young's modulus (GPa)
+	Poisson      float64         // material Poisson's ratio
+	DensityGCm3  float64         // material density (g/cm^3); used by gravity and frequency
+	LoadType     LoadType        // how the loaded faces are loaded
+	LoadN        float64         // total force on the loaded faces (N), in -Z, for LoadForce
+	PressureMPa  float64         // pressure on the loaded faces (MPa) for LoadPressure
+	GravityG     float64         // gravity as a multiple of standard g for LoadGravity
+	Eigenmodes   int             // number of modes/factors for frequency and buckling analyses
+	ThermalAlpha float64         // thermal expansion coefficient (1/K) for thermomech
+	DeltaK       float64         // temperature change (K) for a thermomech study
+	Conductivity float64         // thermal conductivity (consistent units) for heat transfer
+	ColdTempK    float64         // prescribed temperature on the first (support) face (K)
+	HeatFluxQ    float64         // surface heat flux on the remaining faces (heat transfer)
+	ResultField  ResultFieldKind // which scalar field a stress result is coloured by
 }
 
 // eigenmodeCount returns the requested number of modes, clamped to a sensible minimum.
@@ -120,6 +146,7 @@ func defaultSettings() StudySettings {
 		Conductivity: 50,
 		ColdTempK:    0,
 		HeatFluxQ:    50,
+		ResultField:  ResultVonMises,
 	}
 }
 

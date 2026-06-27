@@ -123,8 +123,8 @@ func TestRunStudyOnHostDrivesFullPipeline(t *testing.T) {
 	if res.ElementCount == 0 {
 		t.Error("no elements meshed")
 	}
-	if !(res.PeakVonMisesMPa > 0) {
-		t.Errorf("peak von Mises = %v, want a positive stress", res.PeakVonMisesMPa)
+	if !(res.FieldPeak > 0) {
+		t.Errorf("field peak = %v, want a positive value", res.FieldPeak)
 	}
 	if !(res.MaxDisplacement > 0) {
 		t.Errorf("max displacement = %v, want a positive deflection", res.MaxDisplacement)
@@ -139,6 +139,44 @@ func TestRunStudyOnHostDrivesFullPipeline(t *testing.T) {
 		if !h.saw(m) {
 			t.Errorf("study never called %q", m)
 		}
+	}
+}
+
+// TestRunStudyOnHostResultFieldSelector drives the full real-solver pipeline twice on the
+// same cantilever, switching only the result-field selector, and asserts the reported field
+// label/unit follow the selection — the live cross-check of the selector code path. The
+// max-principal-stress peak must be positive (the beam's tensile fibre) and the displacement
+// field must report in mm, distinct from the stress field's MPa.
+func TestRunStudyOnHostResultFieldSelector(t *testing.T) {
+	bins := requireSolver(t)
+
+	run := func(field ResultFieldKind) *StudyResult {
+		t.Setenv("OBK_CCX_BIN", bins.ccx)
+		t.Setenv("OBK_GMSH_BIN", bins.gmsh)
+		e := NewEngine(newBoxHost())
+		e.applyPanelEdit("mesh_size", "4")
+		e.applyPanelEdit("result_field", string(field))
+		res, err := e.RunStudyOnHost()
+		if err != nil {
+			t.Fatalf("RunStudyOnHost(%s): %v", field, err)
+		}
+		return res
+	}
+
+	principal := run(ResultMaxPrincipal)
+	if principal.FieldLabel != string(ResultMaxPrincipal) || principal.FieldUnit != "MPa" {
+		t.Errorf("principal: label=%q unit=%q, want %q/MPa", principal.FieldLabel, principal.FieldUnit, ResultMaxPrincipal)
+	}
+	if !(principal.FieldPeak > 0) {
+		t.Errorf("max principal peak = %v, want a positive tensile stress", principal.FieldPeak)
+	}
+
+	disp := run(ResultDisplacement)
+	if disp.FieldLabel != string(ResultDisplacement) || disp.FieldUnit != "mm" {
+		t.Errorf("displacement: label=%q unit=%q, want %q/mm", disp.FieldLabel, disp.FieldUnit, ResultDisplacement)
+	}
+	if !(disp.FieldPeak > 0) {
+		t.Errorf("displacement peak = %v, want a positive deflection", disp.FieldPeak)
 	}
 }
 

@@ -45,24 +45,37 @@ func panelControls(s StudySettings) []wire.PanelControlSpec {
 			client.PanelTextBox("mesh_size", "Max element size (mm, 0=auto)", formatNum(s.MeshSizeMM)),
 			client.PanelDropdown("element_order", "Element order", elementOrderOptions(), elementOrderLabel(s.ElementOrder)),
 		),
-		section("Material",
-			client.PanelTextBox("young", "Young's modulus (GPa)", formatNum(s.YoungGPa)),
-			client.PanelTextBox("poisson", "Poisson's ratio", formatNum(s.Poisson)),
-			client.PanelTextBox("density", "Density (g/cm³)", formatNum(s.DensityGCm3)),
-			client.PanelTextBox("alpha", "Thermal expansion (1/K)", formatNum(s.ThermalAlpha)),
-			client.PanelTextBox("conductivity", "Thermal conductivity", formatNum(s.Conductivity)),
+		section("Result",
+			client.PanelDropdown("result_field", "Result field", resultFieldOptions(), string(s.ResultField)),
 		),
-		section("Loads & boundary conditions",
-			client.PanelDropdown("load_type", "Load type", loadTypeOptions(), string(s.LoadType)),
-			client.PanelTextBox("load", "Force on loaded faces (N)", formatNum(s.LoadN)),
-			client.PanelTextBox("pressure", "Pressure on loaded faces (MPa)", formatNum(s.PressureMPa)),
-			client.PanelTextBox("gravity", "Gravity (× g)", formatNum(s.GravityG)),
-			client.PanelTextBox("delta_t", "Temperature change ΔT (K)", formatNum(s.DeltaK)),
-			client.PanelTextBox("cold_temp", "Prescribed temperature (K)", formatNum(s.ColdTempK)),
-			client.PanelTextBox("heat_flux", "Heat flux on loaded faces", formatNum(s.HeatFluxQ)),
-			client.PanelTextBox("deform_scale", "Deformation scale (0=auto)", formatNum(s.DeformScale)),
-		),
+		materialSection(s),
+		loadsSection(s),
 		[]wire.PanelControlSpec{client.PanelButton("run", "Run CalculiX", RunStudyCommandID)},
+	)
+}
+
+// materialSection builds the Material control group (the FreeCAD "Material" task box).
+func materialSection(s StudySettings) []wire.PanelControlSpec {
+	return section("Material",
+		client.PanelTextBox("young", "Young's modulus (GPa)", formatNum(s.YoungGPa)),
+		client.PanelTextBox("poisson", "Poisson's ratio", formatNum(s.Poisson)),
+		client.PanelTextBox("density", "Density (g/cm³)", formatNum(s.DensityGCm3)),
+		client.PanelTextBox("alpha", "Thermal expansion (1/K)", formatNum(s.ThermalAlpha)),
+		client.PanelTextBox("conductivity", "Thermal conductivity", formatNum(s.Conductivity)),
+	)
+}
+
+// loadsSection builds the loads & boundary-conditions control group.
+func loadsSection(s StudySettings) []wire.PanelControlSpec {
+	return section("Loads & boundary conditions",
+		client.PanelDropdown("load_type", "Load type", loadTypeOptions(), string(s.LoadType)),
+		client.PanelTextBox("load", "Force on loaded faces (N)", formatNum(s.LoadN)),
+		client.PanelTextBox("pressure", "Pressure on loaded faces (MPa)", formatNum(s.PressureMPa)),
+		client.PanelTextBox("gravity", "Gravity (× g)", formatNum(s.GravityG)),
+		client.PanelTextBox("delta_t", "Temperature change ΔT (K)", formatNum(s.DeltaK)),
+		client.PanelTextBox("cold_temp", "Prescribed temperature (K)", formatNum(s.ColdTempK)),
+		client.PanelTextBox("heat_flux", "Heat flux on loaded faces", formatNum(s.HeatFluxQ)),
+		client.PanelTextBox("deform_scale", "Deformation scale (0=auto)", formatNum(s.DeformScale)),
 	)
 }
 
@@ -112,6 +125,8 @@ func (e *Engine) applyPanelEdit(controlID, value string) {
 		e.settings.DeformScale = panelNum(value, e.settings.DeformScale)
 	case "eigenmodes":
 		e.settings.Eigenmodes = int(panelNum(value, float64(e.settings.Eigenmodes)))
+	case "result_field":
+		e.settings.ResultField = ResultFieldKind(strings.TrimSpace(value))
 	default:
 		e.applyMaterialOrLoadEdit(controlID, value)
 	}

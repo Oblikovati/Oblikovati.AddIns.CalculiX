@@ -48,21 +48,23 @@ func (e *Engine) renderModeShape(frdPath string, mesh *TetMesh) error {
 	return err
 }
 
-// renderResult paints the von Mises stress field over the mesh surface as a client-
-// graphics flood plot. Mesh coordinates are in mm; the viewport works in host model
-// units, so coordinates are scaled back by 1/modelUnitMM. Returns the peak stress (MPa)
-// for the status report.
-func (e *Engine) renderResult(mesh *TetMesh, res *ResultField) (float64, error) {
-	vm := vonMisesField(res)
-	coords, indices, scalars := surfaceRenderData(mesh, vm)
-	mapper := stressMapper(peak(vm))
+// renderResult paints the selected scalar field (von Mises / displacement / principal
+// stress) over the mesh surface as a client-graphics flood plot spanning the field's actual
+// range. Mesh coordinates are in mm; the viewport works in host model units, so coordinates
+// are scaled back by 1/modelUnitMM. Returns the field's peak value, label, and unit for the
+// status report.
+func (e *Engine) renderResult(mesh *TetMesh, res *ResultField, kind ResultFieldKind) (float64, string, string, error) {
+	field, label, unit := computeResultField(res, kind)
+	coords, indices, scalars := surfaceRenderData(mesh, field)
+	lo, hi := minMaxField(field)
+	mapper := rampMapper(lo, hi)
 	if err := e.api.Graphics().RegisterColorMapper(stressMapperName, mapper); err != nil {
-		return 0, err
+		return 0, "", "", err
 	}
 	if _, err := e.api.Graphics().AddFloodPlot(resultClientID, coords, indices, scalars, mapper, 1.0); err != nil {
-		return 0, err
+		return 0, "", "", err
 	}
-	return peak(vm), nil
+	return peak(field), label, unit, nil
 }
 
 // surfaceRenderData flattens the mesh surface into the (coords, triangle-indices,
