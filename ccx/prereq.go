@@ -154,8 +154,9 @@ func hasHeatSource(m *AnalysisModel) bool {
 // checkMaterial validates the elastic constants and the extra properties a body/thermal
 // load requires, for every material in the model (a multi-body part has one per body).
 func checkMaterial(m *AnalysisModel) error {
+	bodyLoad := m.Gravity != nil || m.Centrifugal != nil
 	for _, mat := range m.distinctMaterials() {
-		if err := checkMaterialProps(mat, m.Gravity != nil, m.Thermal != nil); err != nil {
+		if err := checkMaterialProps(mat, bodyLoad, m.Thermal != nil); err != nil {
 			return err
 		}
 	}
@@ -163,16 +164,16 @@ func checkMaterial(m *AnalysisModel) error {
 }
 
 // checkMaterialProps validates one material's elastic constants plus the density/expansion a
-// gravity or thermal study needs.
-func checkMaterialProps(mat MaterialProps, gravity, thermal bool) error {
+// body load (gravity, centrifugal) or thermal study needs.
+func checkMaterialProps(mat MaterialProps, bodyLoad, thermal bool) error {
 	if mat.YoungMPa <= 0 {
 		return fmt.Errorf("material %q: set a positive Young's modulus", mat.Name)
 	}
 	if mat.Poisson <= -1 || mat.Poisson >= 0.5 {
 		return fmt.Errorf("material %q: the Poisson's ratio %.3g is outside the valid range (-1, 0.5)", mat.Name, mat.Poisson)
 	}
-	if gravity && mat.DensityTonneMM3 <= 0 {
-		return fmt.Errorf("material %q: a gravity load needs a positive material density", mat.Name)
+	if bodyLoad && mat.DensityTonneMM3 <= 0 {
+		return fmt.Errorf("material %q: a body load (gravity/centrifugal) needs a positive material density", mat.Name)
 	}
 	if thermal && mat.ExpansionPerK <= 0 {
 		return fmt.Errorf("material %q: a thermal study needs a positive thermal expansion coefficient", mat.Name)
@@ -217,9 +218,12 @@ func hasSurfaceLoad(m *AnalysisModel) bool {
 	return false
 }
 
-// hasBodyLoad reports a non-zero gravity body force.
+// hasBodyLoad reports a non-zero gravity or centrifugal body force.
 func hasBodyLoad(m *AnalysisModel) bool {
-	return m.Gravity != nil && m.Gravity.Accel != 0
+	if m.Gravity != nil && m.Gravity.Accel != 0 {
+		return true
+	}
+	return m.Centrifugal != nil && m.Centrifugal.Omega2 != 0
 }
 
 // hasEnforcedDisplacement reports a non-zero prescribed displacement on some nodes.
