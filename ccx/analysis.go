@@ -152,6 +152,21 @@ func bodyScopeOptions() []string {
 	return []string{string(BodyScopeAll), string(BodyScopeSelected)}
 }
 
+// MaterialModel selects the panel material's constitutive law.
+type MaterialModel string
+
+const (
+	// MaterialLinear is the default isotropic linear-elastic material (Young/Poisson).
+	MaterialLinear MaterialModel = "linear elastic"
+	// MaterialNeoHooke is a Neo-Hookean hyperelastic (rubber) material, solved with NLGEOM.
+	MaterialNeoHooke MaterialModel = "neo-hookean (rubber)"
+)
+
+// materialModelOptions lists the panel dropdown choices in display order.
+func materialModelOptions() []string {
+	return []string{string(MaterialLinear), string(MaterialNeoHooke)}
+}
+
 // standardGravityMMs2 is one g in CalculiX mm/s^2 units.
 const standardGravityMMs2 = 9810.0
 
@@ -230,6 +245,10 @@ type StudySettings struct {
 
 	BodyScope BodyScope // which solid bodies to analyse (all, or only those with a selected face)
 
+	MaterialModel MaterialModel // constitutive law of the panel material (linear vs Neo-Hookean)
+	NeoHookeC10   float64       // Neo-Hookean C10 (MPa) = μ/2, for MaterialNeoHooke
+	NeoHookeD1    float64       // Neo-Hookean D1 (1/MPa) = 2/K compressibility, for MaterialNeoHooke
+
 	YoungHotGPa float64 // Young's modulus (GPa) at HotTempK; >0 builds a temperature-dependent E(T) table
 	HotTempK    float64 // upper table temperature (K) at which YoungHotGPa applies
 }
@@ -297,7 +316,10 @@ func withInterfaceDefaults(s StudySettings) StudySettings {
 	s.SupportType = SupportFixed
 	s.SpringStiffMM = 1000 // N/mm total over the support face, used when SupportType is elastic
 	s.BodyScope = BodyScopeAll
-	s.YoungHotGPa = 0 // 0 ⇒ temperature-independent elasticity (a single Young/Poisson)
+	s.MaterialModel = MaterialLinear
+	s.NeoHookeC10 = 1.0 // MPa; a soft rubber (μ ≈ 2 MPa), used when MaterialModel is Neo-Hookean
+	s.NeoHookeD1 = 0.1  // 1/MPa; bulk K = 20 MPa, moderately compressible to avoid tet locking
+	s.YoungHotGPa = 0   // 0 ⇒ temperature-independent elasticity (a single Young/Poisson)
 	s.HotTempK = 100
 	return s
 }
@@ -315,6 +337,7 @@ func (s StudySettings) material() MaterialProps {
 		ElectricalSigma: s.ElectricalSigma,
 		SpecificHeat:    s.SpecificHeat,
 		YieldMPa:        s.YieldMPa,
+		Hyper:           s.neoHooke(),
 		ElasticTable:    s.elasticTable(),
 	}
 }
@@ -330,4 +353,13 @@ func (s StudySettings) elasticTable() []ElasticTempPoint {
 		{YoungMPa: s.YoungGPa * gpaToMPa, Poisson: s.Poisson, TempK: 0},
 		{YoungMPa: s.YoungHotGPa * gpaToMPa, Poisson: s.Poisson, TempK: s.HotTempK},
 	}
+}
+
+// neoHooke returns the Neo-Hookean parameters when the panel material model is hyperelastic,
+// else nil (a linear-elastic material).
+func (s StudySettings) neoHooke() *NeoHooke {
+	if s.MaterialModel != MaterialNeoHooke {
+		return nil
+	}
+	return &NeoHooke{C10: s.NeoHookeC10, D1: s.NeoHookeD1}
 }

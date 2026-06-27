@@ -16,7 +16,17 @@ type MaterialProps struct {
 	SpecificHeat    float64            // *SPECIFIC HEAT (consistent units); used by transient coupled analysis
 	YieldMPa        float64            // *PLASTIC yield stress (MPa); 0 ⇒ purely linear-elastic, no plasticity
 	Ortho           *OrthoElastic      // orthotropic elastic constants; nil ⇒ isotropic (Young/Poisson)
+	Hyper           *NeoHooke          // Neo-Hookean hyperelastic material; nil ⇒ linear elastic
 	ElasticTable    []ElasticTempPoint // temperature-dependent isotropic elasticity; empty ⇒ constant Young/Poisson
+}
+
+// NeoHooke is a compressible Neo-Hookean hyperelastic material in the CalculiX *HYPERELASTIC,
+// NEO HOOKE form: strain energy U = C10·(Ī1 − 3) + (1/D1)·(J − 1)², where C10 = μ/2 is half the
+// small-strain shear modulus and D1 = 2/K sets the compressibility (K the bulk modulus). It is
+// the simplest rubber-elasticity model and is solved in a large-deformation (NLGEOM) step.
+type NeoHooke struct {
+	C10 float64 // MPa; C10 = μ/2
+	D1  float64 // 1/MPa; D1 = 2/K (0 ⇒ incompressible, which CalculiX rejects — use a small value)
 }
 
 // ElasticTempPoint is one temperature row of a temperature-dependent *ELASTIC table: the Young's
@@ -263,6 +273,20 @@ func (m *AnalysisModel) hasPlasticity() bool {
 	}
 	for _, mat := range m.distinctMaterials() {
 		if mat.YieldMPa > 0 {
+			return true
+		}
+	}
+	return false
+}
+
+// hasHyperelastic reports whether any material is hyperelastic, which makes the step a
+// large-deformation (NLGEOM) nonlinear solve.
+func (m *AnalysisModel) hasHyperelastic() bool {
+	if !needsElastic(m.Analysis) {
+		return false
+	}
+	for _, mat := range m.distinctMaterials() {
+		if mat.Hyper != nil {
 			return true
 		}
 	}
