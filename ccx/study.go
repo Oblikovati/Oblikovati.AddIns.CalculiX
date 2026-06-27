@@ -35,7 +35,7 @@ func (e *Engine) RunStudyOnHost() (*StudyResult, error) {
 	settings := e.settings
 	e.mu.Unlock()
 
-	faces, err := e.selectedFaces()
+	faces, err := e.selectedFaces(settings.LoadType)
 	if err != nil {
 		return nil, err
 	}
@@ -66,15 +66,17 @@ func (e *Engine) runStudy(bins solverBinaries, settings StudySettings, faces []s
 }
 
 // selectedFaces returns the picked faces' raw reference keys (decoded from the host's
-// "face/<base64>" selection form), requiring at least a support and a loaded face.
-func (e *Engine) selectedFaces() ([]string, error) {
+// "face/<base64>" selection form). A surface load needs a support face plus at least one
+// loaded face; a gravity body load needs only the support face.
+func (e *Engine) selectedFaces(load LoadType) ([]string, error) {
 	sel, err := e.api.Model().Selection()
 	if err != nil {
 		return nil, fmt.Errorf("read selection: %w", err)
 	}
 	faces := decodeSelectedFaces(sel.Refs)
-	if len(faces) < 2 {
-		return nil, fmt.Errorf("select at least two faces — the first is fixed, the rest carry the load (selected %d faces of %d entities)", len(faces), len(sel.Refs))
+	if min := minFaces(load); len(faces) < min {
+		return nil, fmt.Errorf("select at least %d face(s) — the first is fixed%s (selected %d faces of %d entities)",
+			min, loadHint(load), len(faces), len(sel.Refs))
 	}
 	return faces, nil
 }
@@ -96,7 +98,7 @@ func (e *Engine) renderStudy(mesh *TetMesh, res *ResultField, model *AnalysisMod
 	if err != nil {
 		return nil, fmt.Errorf("render result: %w", err)
 	}
-	if err := e.renderConstraints(mesh, groups, faces, loadDirection(model)); err != nil {
+	if err := e.renderConstraints(mesh, groups, faces, model); err != nil {
 		return nil, fmt.Errorf("render constraints: %w", err)
 	}
 	return &StudyResult{
@@ -109,20 +111,55 @@ func (e *Engine) renderStudy(mesh *TetMesh, res *ResultField, model *AnalysisMod
 	}, nil
 }
 
-// buildModel assembles the analysis model from the settings, mesh, and face bindings:
-// the first selected face is fully fixed, the remaining faces share the load.
+// buildModel assembles the analysis model from the settings, mesh, and face bindings: the
+// first selected face is fully fixed; the load (force/pressure/gravity) is applied per the
+// settings to the remaining faces (or, for gravity, to the whole body).
 func buildModel(settings StudySettings, mesh *TetMesh, groups *FaceGroups, faces []string) *AnalysisModel {
-	var loadNodes []int
-	for _, key := range faces[1:] {
-		loadNodes = append(loadNodes, groups.Nodes[key]...)
-	}
-	return &AnalysisModel{
+	m := &AnalysisModel{
 		Analysis: settings.Analysis,
 		Mesh:     mesh,
 		Material: settings.material(),
 		Fixed:    []FixedConstraint{{Name: "FIX", Nodes: groups.Nodes[faces[0]], DOFLow: 1, DOFHigh: 3}},
-		Forces:   []ForceLoad{{Name: "LOAD", Nodes: dedupeInts(loadNodes), Dir: [3]float64{0, 0, -1}, TotalN: settings.LoadN}},
 	}
+	applyLoad(m, settings, groups, faces[1:])
+	return m
+}
+
+// applyLoad attaches the configured load to the model.
+func applyLoad(m *AnalysisModel, settings StudySettings, groups *FaceGroups, loadFaces []string) {
+	switch settings.LoadType {
+	case LoadGravity:
+		m.Gravity = &GravityLoad{Accel: settings.GravityG * standardGravityMMs2, Dir: [3]float64{0, 0, -1}}
+	case LoadPressure:
+		var faces []ElemFace
+		for _, key := range loadFaces {
+			faces = append(faces, groups.ElemFaces[key]...)
+		}
+		m.Pressures = []PressureLoad{{Name: "LOAD", Faces: faces, MPa: settings.PressureMPa}}
+	default: // LoadForce
+		var nodes []int
+		for _, key := range loadFaces {
+			nodes = append(nodes, groups.Nodes[key]...)
+		}
+		m.Forces = []ForceLoad{{Name: "LOAD", Nodes: dedupeInts(nodes), Dir: [3]float64{0, 0, -1}, TotalN: settings.LoadN}}
+	}
+}
+
+// minFaces is the number of selected faces a load type needs: gravity needs only the
+// support; force/pressure need the support plus loaded faces.
+func minFaces(load LoadType) int {
+	if load == LoadGravity {
+		return 1
+	}
+	return 2
+}
+
+// loadHint describes the remaining-face requirement for the selection error message.
+func loadHint(load LoadType) string {
+	if load == LoadGravity {
+		return " (gravity loads the whole body)"
+	}
+	return ", the rest carry the load"
 }
 
 // solveStudyDeck writes the deck, runs ccx, and parses the result field.

@@ -30,25 +30,45 @@ type ForceLoad struct {
 	TotalN float64    // total force magnitude (N)
 }
 
+// PressureLoad applies a uniform pressure (MPa) normal to a set of element-faces via a
+// *DLOAD Pn card. Positive pressure pushes into the face (the CalculiX sign convention).
+type PressureLoad struct {
+	Name  string     // label (diagnostic)
+	Faces []ElemFace // element-faces the pressure acts on
+	MPa   float64    // pressure magnitude (N/mm^2)
+}
+
+// GravityLoad applies a body force (gravitational acceleration) over the whole model via a
+// *DLOAD GRAV card; it requires *DENSITY on the material.
+type GravityLoad struct {
+	Accel float64    // acceleration magnitude (mm/s^2)
+	Dir   [3]float64 // unit direction (e.g. {0,0,-1} for downward)
+}
+
 // AnalysisModel is one fully-resolved study ready to be written as a CalculiX deck: the
 // solid mesh, the material, and the loads/boundary conditions, in CalculiX units.
 type AnalysisModel struct {
-	Analysis AnalysisType
-	Mesh     *TetMesh
-	Material MaterialProps
-	Fixed    []FixedConstraint
-	Forces   []ForceLoad
+	Analysis  AnalysisType
+	Mesh      *TetMesh
+	Material  MaterialProps
+	Fixed     []FixedConstraint
+	Forces    []ForceLoad
+	Pressures []PressureLoad
+	Gravity   *GravityLoad
 }
 
-// needsDensity reports whether any body load requires *DENSITY to be written. Static
-// studies with only nodal forces do not; this grows as gravity/dynamics land.
-func (m *AnalysisModel) needsDensity() bool { return false }
+// needsDensity reports whether any body load requires *DENSITY to be written. A static
+// study with only nodal/pressure surface loads does not; a gravity body load does.
+func (m *AnalysisModel) needsDensity() bool { return m.Gravity != nil }
 
-// loadDirection returns the model's load direction for the visual aids, defaulting to -Z
-// when the model carries no force.
+// loadDirection returns the model's load direction for the visual aids, defaulting to -Z.
 func loadDirection(m *AnalysisModel) [3]float64 {
-	if len(m.Forces) == 0 {
+	switch {
+	case len(m.Forces) > 0:
+		return m.Forces[0].Dir
+	case m.Gravity != nil:
+		return m.Gravity.Dir
+	default:
 		return [3]float64{0, 0, -1}
 	}
-	return m.Forces[0].Dir
 }

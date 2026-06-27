@@ -43,6 +43,26 @@ const (
 	QuadraticTet ElementOrder = 2
 )
 
+// LoadType selects how the picked load faces are loaded.
+type LoadType string
+
+const (
+	// LoadForce applies a total force (N) over the loaded faces (*CLOAD).
+	LoadForce LoadType = "force"
+	// LoadPressure applies a uniform pressure (MPa) normal to the loaded faces (*DLOAD).
+	LoadPressure LoadType = "pressure"
+	// LoadGravity applies self-weight over the whole body (*DLOAD GRAV); no loaded face.
+	LoadGravity LoadType = "gravity"
+)
+
+// loadTypeOptions lists the panel dropdown choices in display order.
+func loadTypeOptions() []string {
+	return []string{string(LoadForce), string(LoadPressure), string(LoadGravity)}
+}
+
+// standardGravityMMs2 is one g in CalculiX mm/s^2 units.
+const standardGravityMMs2 = 9810.0
+
 // StudySettings holds the panel-editable study parameters. Which faces carry the load
 // vs the support is resolved from the host selection at run time (first selected face is
 // the fixed support, the rest carry the load); the load magnitude and the material come
@@ -53,13 +73,17 @@ type StudySettings struct {
 	ElementOrder ElementOrder // tet element order
 	DeformScale  float64      // displacement magnification for the deformed-shape render; 0 = auto
 
-	YoungGPa float64 // material Young's modulus (GPa)
-	Poisson  float64 // material Poisson's ratio
-	LoadN    float64 // total force on the loaded faces (N), applied in -Z
+	YoungGPa    float64  // material Young's modulus (GPa)
+	Poisson     float64  // material Poisson's ratio
+	DensityGCm3 float64  // material density (g/cm^3); used by gravity loads
+	LoadType    LoadType // how the loaded faces are loaded
+	LoadN       float64  // total force on the loaded faces (N), in -Z, for LoadForce
+	PressureMPa float64  // pressure on the loaded faces (MPa) for LoadPressure
+	GravityG    float64  // gravity as a multiple of standard g for LoadGravity
 }
 
 // defaultSettings returns the v1 defaults: linear-static, quadratic tets, auto sizing,
-// mild-steel-like elastic properties and a unit load.
+// mild-steel-like material, and a unit force load.
 func defaultSettings() StudySettings {
 	return StudySettings{
 		Analysis:     AnalysisStatic,
@@ -68,11 +92,21 @@ func defaultSettings() StudySettings {
 		DeformScale:  0,
 		YoungGPa:     210,
 		Poisson:      0.3,
+		DensityGCm3:  7.85,
+		LoadType:     LoadForce,
 		LoadN:        100,
+		PressureMPa:  1,
+		GravityG:     1,
 	}
 }
 
-// material returns the settings' material as CalculiX-unit elastic properties.
+// material returns the settings' material as CalculiX-unit elastic properties (density in
+// t/mm^3, only consumed by body loads).
 func (s StudySettings) material() MaterialProps {
-	return MaterialProps{Name: "MATERIAL", YoungMPa: s.YoungGPa * gpaToMPa, Poisson: s.Poisson}
+	return MaterialProps{
+		Name:            "MATERIAL",
+		YoungMPa:        s.YoungGPa * gpaToMPa,
+		Poisson:         s.Poisson,
+		DensityTonneMM3: s.DensityGCm3 * gCm3ToTonneMM3,
+	}
 }
