@@ -21,8 +21,21 @@ func writeStepBegin(d *deckBuf, m *AnalysisModel) {
 	case AnalysisCoupledThermal:
 		writeCoupledProcedure(d, m.Transient)
 	default:
-		d.line("*STATIC")
+		writeStaticProcedure(d, m)
 	}
+}
+
+// writeStaticProcedure emits the *STATIC card, adding a time-increment data line when the step
+// is nonlinear (contact). Contact convergence needs CalculiX to ramp the load over increments
+// rather than apply it in one shot, so a "tinc, tper" line opens the door to automatic
+// sub-incrementation; a purely linear static study omits it (one increment, as before).
+func writeStaticProcedure(d *deckBuf, m *AnalysisModel) {
+	if m.hasContact() {
+		d.line("*STATIC")
+		d.line("0.1, 1.0")
+		return
+	}
+	d.line("*STATIC")
 }
 
 // writeCoupledProcedure emits the coupled temperature-displacement procedure card: steady

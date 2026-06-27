@@ -181,6 +181,9 @@ type StudySettings struct {
 
 	SpecificHeat   float64 // specific heat capacity (consistent units) for transient coupled analysis
 	TransientTimeS float64 // total time (s) for a transient coupled study; 0 = steady state
+
+	ContactMode bool    // treat detected body interfaces as unilateral contact (vs bonded *TIE)
+	FrictionMu  float64 // Coulomb friction coefficient for contact interfaces; 0 = frictionless
 }
 
 // eigenmodeCount returns the requested number of modes, clamped to a sensible minimum.
@@ -194,7 +197,7 @@ func (s StudySettings) eigenmodeCount() int {
 // defaultSettings returns the v1 defaults: linear-static, quadratic tets, auto sizing,
 // mild-steel-like material, and a unit force load.
 func defaultSettings() StudySettings {
-	return StudySettings{
+	s := StudySettings{
 		Analysis:        AnalysisStatic,
 		MeshSizeMM:      0,
 		ElementOrder:    QuadraticTet,
@@ -222,10 +225,19 @@ func defaultSettings() StudySettings {
 		VoltageV:        5,
 		ElectricalSigma: 1,
 		EMDriveMode:     EMVoltage,
-		CurrentDensity:  1,
-		SpecificHeat:    5e8, // steel-like, consistent units (mm,t,s): ~0.5 J/(g·K)
-		TransientTimeS:  0,   // steady state by default
 	}
+	return withInterfaceDefaults(s)
+}
+
+// withInterfaceDefaults fills the current-drive, transient, and multi-body interface defaults,
+// kept out of defaultSettings so that function stays within the length budget as it grows.
+func withInterfaceDefaults(s StudySettings) StudySettings {
+	s.CurrentDensity = 1
+	s.SpecificHeat = 5e8 // steel-like, consistent units (mm,t,s): ~0.5 J/(g·K)
+	s.TransientTimeS = 0 // steady state by default
+	s.ContactMode = false
+	s.FrictionMu = 0.3 // a typical dry steel-on-steel value, used when ContactMode is on
+	return s
 }
 
 // material returns the settings' material as CalculiX-unit elastic properties (density in

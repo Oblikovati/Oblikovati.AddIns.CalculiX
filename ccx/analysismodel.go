@@ -143,6 +143,7 @@ type AnalysisModel struct {
 	EigenmodeCount int             // number of modes/factors for *FREQUENCY / *BUCKLE
 	ResultField    ResultFieldKind // which scalar field a stress result is coloured by
 	Ties           []TieConstraint // bonded interfaces between touching bodies (*TIE)
+	Contacts       []ContactPair   // unilateral contact interfaces between touching bodies (*CONTACT PAIR)
 	InitialTempK   float64         // reference/initial temperature (*INITIAL CONDITIONS); 0 = default
 	Transient      *TransientStep  // time stepping for a transient coupled study; nil = steady state
 }
@@ -174,6 +175,22 @@ func (m *AnalysisModel) distinctMaterials() []MaterialProps {
 		}
 	}
 	return out
+}
+
+// hasContact reports whether the model carries any unilateral contact pair. Contact is a
+// nonlinear boundary condition, so its presence forces an incremented *STATIC solve.
+func (m *AnalysisModel) hasContact() bool { return len(m.Contacts) > 0 }
+
+// maxYoungMPa returns the stiffest material's Young's modulus, used to scale a penalty contact
+// stiffness off the model's real stiffness rather than a hard-coded constant.
+func (m *AnalysisModel) maxYoungMPa() float64 {
+	var max float64
+	for _, mat := range m.distinctMaterials() {
+		if mat.YoungMPa > max {
+			max = mat.YoungMPa
+		}
+	}
+	return max
 }
 
 // needsDensity reports whether *DENSITY must be written. A gravity body load needs it for

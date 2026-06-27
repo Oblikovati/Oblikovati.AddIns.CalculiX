@@ -51,8 +51,29 @@ func panelControls(s StudySettings) []wire.PanelControlSpec {
 		),
 		materialSection(s),
 		loadsSection(s),
+		contactSection(s),
 		[]wire.PanelControlSpec{client.PanelButton("run", "Run CalculiX", RunStudyCommandID)},
 	)
+}
+
+// contactSection builds the multi-body interface control group: whether touching bodies are
+// bonded (the default *TIE) or in unilateral contact, and the friction coefficient used when
+// contact is active.
+func contactSection(s StudySettings) []wire.PanelControlSpec {
+	return section("Contact",
+		client.PanelDropdown("contact_mode", "Body interfaces", contactModeOptions(), contactModeLabel(s.ContactMode)),
+		client.PanelTextBox("friction", "Friction coefficient μ", formatNum(s.FrictionMu)),
+	)
+}
+
+// contactModeOptions / contactModeLabel map the bonded-vs-contact toggle to dropdown labels.
+func contactModeOptions() []string { return []string{"bonded", "contact"} }
+
+func contactModeLabel(contact bool) string {
+	if contact {
+		return "contact"
+	}
+	return "bonded"
 }
 
 // materialSection builds the Material control group (the FreeCAD "Material" task box).
@@ -230,6 +251,10 @@ func (e *Engine) applyEMEdit(controlID, value string) {
 		e.settings.EMDriveMode = EMDrive(strings.TrimSpace(value))
 	case "current_density":
 		e.settings.CurrentDensity = panelNum(value, e.settings.CurrentDensity)
+	case "contact_mode":
+		e.settings.ContactMode = strings.TrimSpace(value) == "contact"
+	case "friction":
+		e.settings.FrictionMu = panelNum(value, e.settings.FrictionMu)
 	}
 }
 
