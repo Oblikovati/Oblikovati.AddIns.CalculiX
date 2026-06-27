@@ -50,6 +50,7 @@ func panelControls(s StudySettings) []wire.PanelControlSpec {
 			client.PanelDropdown("result_field", "Result field", resultFieldOptions(), string(s.ResultField)),
 		),
 		materialSection(s),
+		supportSection(s),
 		loadsSection(s),
 		contactSection(s),
 		[]wire.PanelControlSpec{client.PanelButton("run", "Run CalculiX", RunStudyCommandID)},
@@ -109,6 +110,24 @@ func materialModelOrDefault(m MaterialModel) MaterialModel {
 		return MaterialLinear
 	}
 	return m
+}
+
+// supportSection builds the support control group: whether the first selected face is rigidly
+// clamped or rests on an elastic spring foundation, and the foundation stiffness.
+func supportSection(s StudySettings) []wire.PanelControlSpec {
+	return section("Support",
+		client.PanelDropdown("support_type", "Support face", supportTypeOptions(), string(supportTypeOrDefault(s.SupportType))),
+		client.PanelTextBox("spring_stiffness", "Spring stiffness (N/mm, elastic)", formatNum(s.SpringStiffMM)),
+	)
+}
+
+// supportTypeOrDefault treats the zero value as the default (fixed), so an unset setting renders
+// as the unchanged rigid clamp.
+func supportTypeOrDefault(t SupportType) SupportType {
+	if t == "" {
+		return SupportFixed
+	}
+	return t
 }
 
 // loadsSection builds the loads & boundary-conditions control group.
@@ -257,6 +276,10 @@ func (e *Engine) applyHyperelasticEdit(controlID, value string) bool {
 // boundary-condition controls to applyFieldBCEdit.
 func (e *Engine) applyLoadEdit(controlID, value string) {
 	switch controlID {
+	case "support_type":
+		e.settings.SupportType = SupportType(strings.TrimSpace(value))
+	case "spring_stiffness":
+		e.settings.SpringStiffMM = panelNum(value, e.settings.SpringStiffMM)
 	case "load_type":
 		e.settings.LoadType = LoadType(strings.TrimSpace(value))
 	case "load":

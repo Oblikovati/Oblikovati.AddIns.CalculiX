@@ -18,6 +18,9 @@ func constraintWriters(m *AnalysisModel) []ConstraintWriter {
 	for i := range m.Fixed {
 		cs = append(cs, fixedWriter{c: &m.Fixed[i]})
 	}
+	for i := range m.Springs {
+		cs = append(cs, springWriter{c: &m.Springs[i]})
+	}
 	for i := range m.Displacements {
 		cs = append(cs, displacementWriter{c: &m.Displacements[i]})
 	}

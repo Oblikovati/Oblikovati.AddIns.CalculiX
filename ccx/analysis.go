@@ -117,6 +117,23 @@ func heatDriveOptions() []string {
 	return []string{string(HeatDriveFlux), string(HeatDriveFilm), string(HeatDriveBody), string(HeatDriveRadiation)}
 }
 
+// SupportType selects how the first (support) face is held in a mechanical static study.
+type SupportType string
+
+const (
+	// SupportFixed clamps the support face rigidly (a zero *BOUNDARY on all translations).
+	SupportFixed SupportType = "fixed"
+	// SupportElastic rests the support face on a grounded elastic foundation (*SPRING): the
+	// face is held by springs in every global direction rather than clamped, so it can settle
+	// under load. This is CalculiX's elastic-support / spring boundary condition.
+	SupportElastic SupportType = "elastic (spring)"
+)
+
+// supportTypeOptions lists the panel dropdown choices in display order.
+func supportTypeOptions() []string {
+	return []string{string(SupportFixed), string(SupportElastic)}
+}
+
 // BodyScope selects which of the active part's solid bodies a study analyses.
 type BodyScope string
 
@@ -223,6 +240,9 @@ type StudySettings struct {
 	ContactMode bool    // treat detected body interfaces as unilateral contact (vs bonded *TIE)
 	FrictionMu  float64 // Coulomb friction coefficient for contact interfaces; 0 = frictionless
 
+	SupportType   SupportType // how the support face is held in a static study (fixed vs elastic)
+	SpringStiffMM float64     // total elastic-support stiffness (N/mm) over the support face for SupportElastic
+
 	BodyScope BodyScope // which solid bodies to analyse (all, or only those with a selected face)
 
 	MaterialModel MaterialModel // constitutive law of the panel material (linear vs Neo-Hookean)
@@ -290,6 +310,8 @@ func withInterfaceDefaults(s StudySettings) StudySettings {
 	s.TransientTimeS = 0 // steady state by default
 	s.ContactMode = false
 	s.FrictionMu = 0.3 // a typical dry steel-on-steel value, used when ContactMode is on
+	s.SupportType = SupportFixed
+	s.SpringStiffMM = 1000 // N/mm total over the support face, used when SupportType is elastic
 	s.BodyScope = BodyScopeAll
 	s.MaterialModel = MaterialLinear
 	s.NeoHookeC10 = 1.0 // MPa; a soft rubber (μ ≈ 2 MPa), used when MaterialModel is Neo-Hookean

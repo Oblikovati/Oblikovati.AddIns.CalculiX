@@ -230,10 +230,16 @@ func modal(a AnalysisType) bool {
 	return a == AnalysisFrequency
 }
 
-// hasSupportNodes reports whether at least one fixed constraint pins some nodes.
+// hasSupportNodes reports whether the model is held against rigid-body motion: a fixed clamp
+// or a grounded elastic (spring) foundation on some nodes both count as a support.
 func hasSupportNodes(m *AnalysisModel) bool {
 	for _, f := range m.Fixed {
 		if len(f.Nodes) > 0 {
+			return true
+		}
+	}
+	for _, s := range m.Springs {
+		if len(s.Nodes) > 0 && s.StiffnessTotal > 0 {
 			return true
 		}
 	}
