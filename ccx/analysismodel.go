@@ -6,15 +6,25 @@ package ccx
 // N, MPa). The deck writer emits these verbatim, so all unit conversion from the host's
 // material data happens once, upstream (see units.go).
 type MaterialProps struct {
-	Name            string  // *MATERIAL name
-	YoungMPa        float64 // *ELASTIC Young's modulus (MPa = N/mm^2)
-	Poisson         float64 // *ELASTIC Poisson's ratio
-	DensityTonneMM3 float64 // *DENSITY (t/mm^3); only emitted when a body load needs it
-	ExpansionPerK   float64 // *EXPANSION thermal coefficient (1/K); used by thermal stress
-	Conductivity    float64 // *CONDUCTIVITY (consistent units); used by heat transfer
-	ElectricalSigma float64 // electrical conductivity (consistent units); used by the electrostatic analogy
-	SpecificHeat    float64 // *SPECIFIC HEAT (consistent units); used by transient coupled analysis
-	YieldMPa        float64 // *PLASTIC yield stress (MPa); 0 ⇒ purely linear-elastic, no plasticity
+	Name            string        // *MATERIAL name
+	YoungMPa        float64       // *ELASTIC Young's modulus (MPa = N/mm^2)
+	Poisson         float64       // *ELASTIC Poisson's ratio
+	DensityTonneMM3 float64       // *DENSITY (t/mm^3); only emitted when a body load needs it
+	ExpansionPerK   float64       // *EXPANSION thermal coefficient (1/K); used by thermal stress
+	Conductivity    float64       // *CONDUCTIVITY (consistent units); used by heat transfer
+	ElectricalSigma float64       // electrical conductivity (consistent units); used by the electrostatic analogy
+	SpecificHeat    float64       // *SPECIFIC HEAT (consistent units); used by transient coupled analysis
+	YieldMPa        float64       // *PLASTIC yield stress (MPa); 0 ⇒ purely linear-elastic, no plasticity
+	Ortho           *OrthoElastic // orthotropic elastic constants; nil ⇒ isotropic (Young/Poisson)
+}
+
+// OrthoElastic holds the nine engineering constants of an orthotropic material, in CalculiX
+// units (E, G in MPa), emitted as *ELASTIC, TYPE=ENGINEERING CONSTANTS. The material axes are
+// the global axes (1=x, 2=y, 3=z).
+type OrthoElastic struct {
+	E1MPa, E2MPa, E3MPa    float64
+	Nu12, Nu13, Nu23       float64
+	G12MPa, G13MPa, G23MPa float64
 }
 
 // TransientStep parameterizes a time-dependent step: the initial time increment and the

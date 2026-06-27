@@ -5,6 +5,7 @@ package ccx
 import (
 	"strings"
 
+	"oblikovati.org/api/types"
 	"oblikovati.org/api/wire"
 )
 
@@ -37,6 +38,22 @@ func materialPropsFromInfo(info wire.MaterialInfo) MaterialProps {
 		ExpansionPerK:   info.Thermal.ExpansionCoeff,
 		Conductivity:    info.Thermal.Conductivity,
 		ElectricalSigma: reciprocalOrZero(info.Electrical.Resistivity),
+		Ortho:           orthoFromInfo(info),
+	}
+}
+
+// orthoFromInfo returns the orthotropic elastic constants (E, G converted GPa→MPa) when the
+// host material declares a non-isotropic elastic symmetry, else nil so the isotropic Young/
+// Poisson path is used.
+func orthoFromInfo(info wire.MaterialInfo) *OrthoElastic {
+	if !types.IsotropyClass(info.IsotropyClass).Anisotropic() {
+		return nil
+	}
+	a := info.Anisotropic
+	return &OrthoElastic{
+		E1MPa: a.E1 * gpaToMPa, E2MPa: a.E2 * gpaToMPa, E3MPa: a.E3 * gpaToMPa,
+		Nu12: a.Nu12, Nu13: a.Nu13, Nu23: a.Nu23,
+		G12MPa: a.G12 * gpaToMPa, G13MPa: a.G13 * gpaToMPa, G23MPa: a.G23 * gpaToMPa,
 	}
 }
 
