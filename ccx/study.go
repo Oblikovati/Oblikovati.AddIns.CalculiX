@@ -303,6 +303,7 @@ func buildModel(settings StudySettings, mesh *TetMesh, groups *FaceGroups, faces
 		Sections:       buildSections(mesh, materials),
 		EigenmodeCount: settings.eigenmodeCount(),
 		ResultField:    settings.ResultField,
+		Ties:           detectTies(mesh),
 	}
 	if settings.Analysis == AnalysisHeatTransfer {
 		applyThermalBCs(m, settings, groups, faces)
