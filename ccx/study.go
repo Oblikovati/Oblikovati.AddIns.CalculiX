@@ -62,7 +62,7 @@ func (e *Engine) runStudy(bins solverBinaries, settings StudySettings, faces []s
 	if err != nil {
 		return nil, err
 	}
-	return e.renderStudy(mesh, res, dir)
+	return e.renderStudy(mesh, res, model, groups, faces, dir)
 }
 
 // selectedFaces returns the picked faces' raw reference keys (decoded from the host's
@@ -89,11 +89,15 @@ func (e *Engine) meshActiveBody(bins solverBinaries, settings StudySettings, dir
 	return NewGmshMesher(bins.gmsh).Mesh(surface, opts, dir)
 }
 
-// renderStudy paints the result and returns the run summary.
-func (e *Engine) renderStudy(mesh *TetMesh, res *ResultField, dir string) (*StudyResult, error) {
+// renderStudy paints the stress result plus the support/load visual aids, and returns the
+// run summary.
+func (e *Engine) renderStudy(mesh *TetMesh, res *ResultField, model *AnalysisModel, groups *FaceGroups, faces []string, dir string) (*StudyResult, error) {
 	peakVM, err := e.renderResult(mesh, res)
 	if err != nil {
 		return nil, fmt.Errorf("render result: %w", err)
+	}
+	if err := e.renderConstraints(mesh, groups, faces, loadDirection(model)); err != nil {
+		return nil, fmt.Errorf("render constraints: %w", err)
 	}
 	return &StudyResult{
 		FrdPath:          filepath.Join(dir, "study.frd"),

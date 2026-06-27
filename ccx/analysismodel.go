@@ -43,3 +43,12 @@ type AnalysisModel struct {
 // needsDensity reports whether any body load requires *DENSITY to be written. Static
 // studies with only nodal forces do not; this grows as gravity/dynamics land.
 func (m *AnalysisModel) needsDensity() bool { return false }
+
+// loadDirection returns the model's load direction for the visual aids, defaulting to -Z
+// when the model carries no force.
+func loadDirection(m *AnalysisModel) [3]float64 {
+	if len(m.Forces) == 0 {
+		return [3]float64{0, 0, -1}
+	}
+	return m.Forces[0].Dir
+}

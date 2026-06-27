@@ -29,21 +29,62 @@ func (e *Engine) ShowPanel() (wire.OKResult, error) {
 	})
 }
 
-// panelControls builds the parameter controls from the current settings.
+// panelControls builds the parameter controls, grouped into titled sections that mirror
+// the layout of the FreeCAD CalculiX solver task panel (Solver Parameters / Mesh /
+// Material / Loads & boundary conditions, then a "Run CalculiX" button). The host's
+// control vocabulary has no real group box, so each section is a heading label followed
+// by its controls and a separator.
 func panelControls(s StudySettings) []wire.PanelControlSpec {
+	return joinControls(
+		header("Solver CalculiX Control", "Select the fixed face first, then the loaded face(s)."),
+		section("Solver Parameters",
+			client.PanelDropdown("analysis", "Analysis type", analysisTypeOptions(), string(s.Analysis)),
+		),
+		section("Mesh",
+			client.PanelTextBox("mesh_size", "Max element size (mm, 0=auto)", formatNum(s.MeshSizeMM)),
+			client.PanelDropdown("element_order", "Element order", elementOrderOptions(), elementOrderLabel(s.ElementOrder)),
+		),
+		section("Material",
+			client.PanelTextBox("young", "Young's modulus (GPa)", formatNum(s.YoungGPa)),
+			client.PanelTextBox("poisson", "Poisson's ratio", formatNum(s.Poisson)),
+		),
+		section("Loads & boundary conditions",
+			client.PanelTextBox("load", "Force on loaded faces (N)", formatNum(s.LoadN)),
+			client.PanelTextBox("deform_scale", "Deformation scale (0=auto)", formatNum(s.DeformScale)),
+		),
+		[]wire.PanelControlSpec{client.PanelButton("run", "Run CalculiX", RunStudyCommandID)},
+	)
+}
+
+// header builds the panel's title + a one-line usage hint.
+func header(title, hint string) []wire.PanelControlSpec {
 	return []wire.PanelControlSpec{
-		client.PanelLabel("hdr", "— Study parameters —"),
-		client.PanelDropdown("analysis", "Analysis", analysisTypeOptions(), string(s.Analysis)),
-		client.PanelTextBox("mesh_size", "Mesh size (mm, 0=auto)", formatNum(s.MeshSizeMM)),
-		client.PanelDropdown("element_order", "Element order", elementOrderOptions(), elementOrderLabel(s.ElementOrder)),
-		client.PanelTextBox("deform_scale", "Deform scale (0=auto)", formatNum(s.DeformScale)),
-		client.PanelLabel("mat_hdr", "— Material & load —"),
-		client.PanelTextBox("young", "Young's modulus (GPa)", formatNum(s.YoungGPa)),
-		client.PanelTextBox("poisson", "Poisson's ratio", formatNum(s.Poisson)),
-		client.PanelTextBox("load", "Load (N, on selected faces)", formatNum(s.LoadN)),
+		client.PanelLabel("hdr", title),
+		client.PanelLabel("hint", hint),
 		client.PanelSeparator(),
-		client.PanelButton("run", "Run Stress Analysis", RunStudyCommandID),
 	}
+}
+
+// section builds a titled control group: a heading label, the controls, and a trailing
+// separator (the dockable-window analog of a FreeCAD QGroupBox).
+func section(title string, controls ...wire.PanelControlSpec) []wire.PanelControlSpec {
+	out := []wire.PanelControlSpec{client.PanelLabel(labelID(title), title)}
+	out = append(out, controls...)
+	return append(out, client.PanelSeparator())
+}
+
+// joinControls flattens the section groups into one control list.
+func joinControls(groups ...[]wire.PanelControlSpec) []wire.PanelControlSpec {
+	var out []wire.PanelControlSpec
+	for _, g := range groups {
+		out = append(out, g...)
+	}
+	return out
+}
+
+// labelID derives a stable control id for a section heading from its title.
+func labelID(title string) string {
+	return "sec_" + strings.ToLower(strings.ReplaceAll(strings.Fields(title)[0], "&", "and"))
 }
 
 // applyPanelEdit writes one edited study parameter back into the engine, keyed by control id.
