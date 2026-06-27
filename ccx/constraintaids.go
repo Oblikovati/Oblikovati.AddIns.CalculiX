@@ -29,15 +29,44 @@ const maxConstraintGlyphs = 24
 
 // renderConstraints draws solid 3D fixed-support cubes and load arrows over the model,
 // mirroring the support/load symbols a dedicated FEA setup shows. The first selected face
-// is the support; the remaining faces carry the load along loadDir. Coordinates are
-// converted from the mesh's millimetres back to host model units.
-func (e *Engine) renderConstraints(mesh *TetMesh, groups *FaceGroups, faces []string, loadDir [3]float64) error {
+// is the support. A surface load (force/pressure) draws arrows on the loaded faces; a
+// gravity body load draws arrows spread over the whole body. Coordinates are converted
+// from the mesh's millimetres back to host model units.
+func (e *Engine) renderConstraints(mesh *TetMesh, groups *FaceGroups, faces []string, model *AnalysisModel) error {
 	index := mesh.nodeByID()
 	length := glyphScale(mesh)
 	if err := e.drawSupports(groups.Nodes[faces[0]], index, length); err != nil {
 		return err
 	}
-	return e.drawLoads(groups, faces[1:], loadDir, index, length)
+	if model.Gravity != nil {
+		return e.drawBodyLoad(mesh, model.Gravity.Dir, index, length)
+	}
+	return e.drawLoads(groups, faces[1:], loadDirection(model), index, length)
+}
+
+// drawBodyLoad paints arrows spread over the body's surface to indicate a gravity body
+// force (which has no single loaded face).
+func (e *Engine) drawBodyLoad(mesh *TetMesh, dir [3]float64, index map[int]Node, length float64) error {
+	g := &glyphMesh{}
+	for _, nid := range sampleNodes(surfaceNodeIDs(mesh), maxConstraintGlyphs) {
+		g.arrow(modelPoint(index[nid]), dir, length)
+	}
+	return e.pushGlyphs(loadsClientID, g, loadColor)
+}
+
+// surfaceNodeIDs returns the unique corner-node ids on the mesh surface.
+func surfaceNodeIDs(mesh *TetMesh) []int {
+	seen := map[int]bool{}
+	var ids []int
+	for _, bf := range mesh.Surface {
+		for _, n := range bf.Corners {
+			if !seen[n] {
+				seen[n] = true
+				ids = append(ids, n)
+			}
+		}
+	}
+	return ids
 }
 
 // drawSupports paints a solid cube at each fixed-face node.

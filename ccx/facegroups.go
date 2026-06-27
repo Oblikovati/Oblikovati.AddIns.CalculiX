@@ -7,10 +7,11 @@ import (
 	"math"
 )
 
-// FaceGroups maps each selected host face (by reference key) to the mesh node set on that
-// face, used to attach loads and boundary conditions.
+// FaceGroups binds each selected host face (by reference key) to the mesh entities on that
+// face: the node set (for *BOUNDARY / *CLOAD) and the element-faces (for *DLOAD pressure).
 type FaceGroups struct {
-	Nodes map[string][]int
+	Nodes     map[string][]int
+	ElemFaces map[string][]ElemFace
 }
 
 // normalAlignMin is the minimum |dot| of two unit normals to consider two facets coplanar
@@ -18,12 +19,14 @@ type FaceGroups struct {
 const normalAlignMin = 0.9
 
 // faceAgg accumulates a group of mesh boundary facets sharing a gmsh surface id: a
-// representative centroid and normal, plus the union of their node ids.
+// representative centroid and normal, the union of their node ids, and the corner triples
+// of the facets (resolved to element-faces for pressure loads).
 type faceAgg struct {
 	centroidSum [3]float64
 	normalSum   [3]float64
 	count       int
 	nodes       map[int]bool
+	facets      [][3]int
 }
 
 // buildFaceGroups binds each selected host face to a mesh node set. gmsh has already
@@ -33,7 +36,11 @@ type faceAgg struct {
 // splits into several patches matches only its nearest patch (a documented follow-up).
 func (e *Engine) buildFaceGroups(bodyIndex int, faceKeys []string, mesh *TetMesh) (*FaceGroups, error) {
 	groups := groupBoundaryByFace(mesh)
-	out := &FaceGroups{Nodes: make(map[string][]int, len(faceKeys))}
+	faceIndex := faceElemIndex(mesh)
+	out := &FaceGroups{
+		Nodes:     make(map[string][]int, len(faceKeys)),
+		ElemFaces: make(map[string][]ElemFace, len(faceKeys)),
+	}
 	for _, key := range faceKeys {
 		host, err := e.pullFaceFacets(bodyIndex, key)
 		if err != nil {
@@ -45,6 +52,7 @@ func (e *Engine) buildFaceGroups(bodyIndex int, faceKeys []string, mesh *TetMesh
 			return nil, fmt.Errorf("face %s did not match any mesh surface group", key)
 		}
 		out.Nodes[key] = match.nodeList()
+		out.ElemFaces[key] = resolveElemFaces(match.facets, faceIndex)
 	}
 	return out, nil
 }
@@ -60,13 +68,13 @@ func groupBoundaryByFace(mesh *TetMesh) map[int]*faceAgg {
 			agg = &faceAgg{nodes: map[int]bool{}}
 			groups[bf.Face] = agg
 		}
-		agg.accumulate(c, n, bf.Nodes)
+		agg.accumulate(c, n, bf.Nodes, bf.Corners)
 	}
 	return groups
 }
 
-// accumulate folds one facet's centroid, normal, and nodes into the aggregate.
-func (a *faceAgg) accumulate(centroid, normal [3]float64, nodes []int) {
+// accumulate folds one facet's centroid, normal, nodes, and corner triple into the aggregate.
+func (a *faceAgg) accumulate(centroid, normal [3]float64, nodes []int, corners [3]int) {
 	for k := 0; k < 3; k++ {
 		a.centroidSum[k] += centroid[k]
 		a.normalSum[k] += normal[k]
@@ -75,6 +83,7 @@ func (a *faceAgg) accumulate(centroid, normal [3]float64, nodes []int) {
 	for _, n := range nodes {
 		a.nodes[n] = true
 	}
+	a.facets = append(a.facets, corners)
 }
 
 // centroid returns the mean facet centroid of the group.

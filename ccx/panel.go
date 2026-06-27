@@ -47,9 +47,13 @@ func panelControls(s StudySettings) []wire.PanelControlSpec {
 		section("Material",
 			client.PanelTextBox("young", "Young's modulus (GPa)", formatNum(s.YoungGPa)),
 			client.PanelTextBox("poisson", "Poisson's ratio", formatNum(s.Poisson)),
+			client.PanelTextBox("density", "Density (g/cm³)", formatNum(s.DensityGCm3)),
 		),
 		section("Loads & boundary conditions",
+			client.PanelDropdown("load_type", "Load type", loadTypeOptions(), string(s.LoadType)),
 			client.PanelTextBox("load", "Force on loaded faces (N)", formatNum(s.LoadN)),
+			client.PanelTextBox("pressure", "Pressure on loaded faces (MPa)", formatNum(s.PressureMPa)),
+			client.PanelTextBox("gravity", "Gravity (× g)", formatNum(s.GravityG)),
 			client.PanelTextBox("deform_scale", "Deformation scale (0=auto)", formatNum(s.DeformScale)),
 		),
 		[]wire.PanelControlSpec{client.PanelButton("run", "Run CalculiX", RunStudyCommandID)},
@@ -100,12 +104,28 @@ func (e *Engine) applyPanelEdit(controlID, value string) {
 		e.settings.ElementOrder = parseElementOrder(value, e.settings.ElementOrder)
 	case "deform_scale":
 		e.settings.DeformScale = panelNum(value, e.settings.DeformScale)
+	default:
+		e.applyMaterialOrLoadEdit(controlID, value)
+	}
+}
+
+// applyMaterialOrLoadEdit handles the material and load control edits.
+func (e *Engine) applyMaterialOrLoadEdit(controlID, value string) {
+	switch controlID {
 	case "young":
 		e.settings.YoungGPa = panelNum(value, e.settings.YoungGPa)
 	case "poisson":
 		e.settings.Poisson = panelNum(value, e.settings.Poisson)
+	case "density":
+		e.settings.DensityGCm3 = panelNum(value, e.settings.DensityGCm3)
+	case "load_type":
+		e.settings.LoadType = LoadType(strings.TrimSpace(value))
 	case "load":
 		e.settings.LoadN = panelNum(value, e.settings.LoadN)
+	case "pressure":
+		e.settings.PressureMPa = panelNum(value, e.settings.PressureMPa)
+	case "gravity":
+		e.settings.GravityG = panelNum(value, e.settings.GravityG)
 	}
 }
 

@@ -21,6 +21,12 @@ func constraintWriters(m *AnalysisModel) []ConstraintWriter {
 	for i := range m.Forces {
 		cs = append(cs, forceWriter{c: &m.Forces[i]})
 	}
+	for i := range m.Pressures {
+		cs = append(cs, pressureWriter{c: &m.Pressures[i]})
+	}
+	if m.Gravity != nil {
+		cs = append(cs, gravityWriter{c: m.Gravity})
+	}
 	return cs
 }
 
