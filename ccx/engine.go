@@ -10,6 +10,7 @@ package ccx
 
 import (
 	"encoding/json"
+	"fmt"
 	"sync"
 
 	"oblikovati.org/api/client"
@@ -98,11 +99,13 @@ func (e *Engine) launchStudy() {
 			e.running = false
 			e.mu.Unlock()
 		}()
-		if _, err := e.RunStudyOnHost(); err != nil {
+		res, err := e.RunStudyOnHost()
+		if err != nil {
 			e.reportStatus("CalculiX study failed: " + err.Error())
 			return
 		}
-		e.reportStatus("CalculiX study complete.")
+		e.reportStatus(fmt.Sprintf("CalculiX: %d elements, peak von Mises %.1f MPa, max displacement %.3g mm.",
+			res.ElementCount, res.PeakVonMisesMPa, res.MaxDisplacement))
 	}()
 }
 

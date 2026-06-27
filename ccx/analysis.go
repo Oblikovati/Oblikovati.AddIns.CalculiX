@@ -43,21 +43,36 @@ const (
 	QuadraticTet ElementOrder = 2
 )
 
-// StudySettings holds the panel-editable study parameters. Loads and boundary
-// conditions are resolved from the host selection at run time, not stored here.
+// StudySettings holds the panel-editable study parameters. Which faces carry the load
+// vs the support is resolved from the host selection at run time (first selected face is
+// the fixed support, the rest carry the load); the load magnitude and the material come
+// from here until a richer setup UI and per-body material resolution land.
 type StudySettings struct {
 	Analysis     AnalysisType // *STEP procedure
-	MeshSizeMM   float64      // gmsh characteristic length (cm model units → see units.go); 0 = auto
+	MeshSizeMM   float64      // gmsh characteristic length (mm); 0 = auto
 	ElementOrder ElementOrder // tet element order
 	DeformScale  float64      // displacement magnification for the deformed-shape render; 0 = auto
+
+	YoungGPa float64 // material Young's modulus (GPa)
+	Poisson  float64 // material Poisson's ratio
+	LoadN    float64 // total force on the loaded faces (N), applied in -Z
 }
 
-// defaultSettings returns the v1 defaults: linear-static, quadratic tets, auto sizing.
+// defaultSettings returns the v1 defaults: linear-static, quadratic tets, auto sizing,
+// mild-steel-like elastic properties and a unit load.
 func defaultSettings() StudySettings {
 	return StudySettings{
 		Analysis:     AnalysisStatic,
 		MeshSizeMM:   0,
 		ElementOrder: QuadraticTet,
 		DeformScale:  0,
+		YoungGPa:     210,
+		Poisson:      0.3,
+		LoadN:        100,
 	}
+}
+
+// material returns the settings' material as CalculiX-unit elastic properties.
+func (s StudySettings) material() MaterialProps {
+	return MaterialProps{Name: "MATERIAL", YoungMPa: s.YoungGPa * gpaToMPa, Poisson: s.Poisson}
 }

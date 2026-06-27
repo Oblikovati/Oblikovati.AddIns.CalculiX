@@ -49,9 +49,11 @@ func TestSetupRegistersCommandAndPanel(t *testing.T) {
 	}
 }
 
-func TestRunStudyOnHostIsNotYetImplemented(t *testing.T) {
+func TestRunStudyOnHostErrorsWithoutSolver(t *testing.T) {
+	// With no built solver on the relative path and no selection, the study must fail
+	// loudly rather than silently producing nothing.
 	if _, err := NewEngine(&recordingHost{}).RunStudyOnHost(); err == nil {
-		t.Fatal("RunStudyOnHost should report not-implemented in the M0 scaffold")
+		t.Fatal("RunStudyOnHost should error when the solver/selection is unavailable")
 	}
 }
 

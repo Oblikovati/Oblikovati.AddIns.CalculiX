@@ -37,6 +37,10 @@ func panelControls(s StudySettings) []wire.PanelControlSpec {
 		client.PanelTextBox("mesh_size", "Mesh size (mm, 0=auto)", formatNum(s.MeshSizeMM)),
 		client.PanelDropdown("element_order", "Element order", elementOrderOptions(), elementOrderLabel(s.ElementOrder)),
 		client.PanelTextBox("deform_scale", "Deform scale (0=auto)", formatNum(s.DeformScale)),
+		client.PanelLabel("mat_hdr", "— Material & load —"),
+		client.PanelTextBox("young", "Young's modulus (GPa)", formatNum(s.YoungGPa)),
+		client.PanelTextBox("poisson", "Poisson's ratio", formatNum(s.Poisson)),
+		client.PanelTextBox("load", "Load (N, on selected faces)", formatNum(s.LoadN)),
 		client.PanelSeparator(),
 		client.PanelButton("run", "Run Stress Analysis", RunStudyCommandID),
 	}
@@ -55,6 +59,12 @@ func (e *Engine) applyPanelEdit(controlID, value string) {
 		e.settings.ElementOrder = parseElementOrder(value, e.settings.ElementOrder)
 	case "deform_scale":
 		e.settings.DeformScale = panelNum(value, e.settings.DeformScale)
+	case "young":
+		e.settings.YoungGPa = panelNum(value, e.settings.YoungGPa)
+	case "poisson":
+		e.settings.Poisson = panelNum(value, e.settings.Poisson)
+	case "load":
+		e.settings.LoadN = panelNum(value, e.settings.LoadN)
 	}
 }
 
