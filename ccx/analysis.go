@@ -117,6 +117,24 @@ func heatDriveOptions() []string {
 	return []string{string(HeatDriveFlux), string(HeatDriveFilm), string(HeatDriveBody), string(HeatDriveRadiation)}
 }
 
+// BodyScope selects which of the active part's solid bodies a study analyses.
+type BodyScope string
+
+const (
+	// BodyScopeAll analyses every solid body in the active part (the default — unchanged
+	// behaviour, so a single-body or whole-assembly study needs no setup).
+	BodyScopeAll BodyScope = "all solid bodies"
+	// BodyScopeSelected analyses only the solid bodies that own a selected face, so the user
+	// scopes a study to a sub-assembly by picking faces on the bodies of interest. A body with
+	// no selected face — e.g. a middle body in a load path — is then excluded, so this is opt-in.
+	BodyScopeSelected BodyScope = "bodies with a selected face"
+)
+
+// bodyScopeOptions lists the panel dropdown choices in display order.
+func bodyScopeOptions() []string {
+	return []string{string(BodyScopeAll), string(BodyScopeSelected)}
+}
+
 // standardGravityMMs2 is one g in CalculiX mm/s^2 units.
 const standardGravityMMs2 = 9810.0
 
@@ -189,6 +207,8 @@ type StudySettings struct {
 
 	ContactMode bool    // treat detected body interfaces as unilateral contact (vs bonded *TIE)
 	FrictionMu  float64 // Coulomb friction coefficient for contact interfaces; 0 = frictionless
+
+	BodyScope BodyScope // which solid bodies to analyse (all, or only those with a selected face)
 }
 
 // eigenmodeCount returns the requested number of modes, clamped to a sensible minimum.
@@ -251,6 +271,7 @@ func withInterfaceDefaults(s StudySettings) StudySettings {
 	s.TransientTimeS = 0 // steady state by default
 	s.ContactMode = false
 	s.FrictionMu = 0.3 // a typical dry steel-on-steel value, used when ContactMode is on
+	s.BodyScope = BodyScopeAll
 	return s
 }
 
