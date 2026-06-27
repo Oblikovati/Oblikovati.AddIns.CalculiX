@@ -241,3 +241,30 @@ func TestRunStudyOnHostElectrostatic(t *testing.T) {
 		t.Errorf("potential range = %.3g..%.3g V, want ~0..12 V", res.Scalar.Min, res.Scalar.Max)
 	}
 }
+
+// TestRunStudyOnHostCurrentDrivenEM drives the current-driven electric-conduction path end to
+// end: the first face is grounded and a current density is injected on the second, returning a
+// potential field rising from 0 at ground to a positive value at the fed face.
+func TestRunStudyOnHostCurrentDrivenEM(t *testing.T) {
+	bins := requireSolver(t)
+	t.Setenv("OBK_CCX_BIN", bins.ccx)
+	t.Setenv("OBK_GMSH_BIN", bins.gmsh)
+
+	e := NewEngine(newBoxHost())
+	e.applyPanelEdit("analysis", string(AnalysisElectromagnetic))
+	e.applyPanelEdit("em_drive", string(EMCurrent))
+	e.applyPanelEdit("mesh_size", "4")
+	e.applyPanelEdit("elec_sigma", "50")
+	e.applyPanelEdit("current_density", "100")
+
+	res, err := e.RunStudyOnHost()
+	if err != nil {
+		t.Fatalf("RunStudyOnHost (current-driven EM): %v", err)
+	}
+	if res.Scalar == nil || res.Scalar.Label != "electric potential" {
+		t.Fatalf("current-driven study returned %+v, want an electric-potential field", res.Scalar)
+	}
+	if !(res.Scalar.Min <= 0.1 && res.Scalar.Max > res.Scalar.Min) {
+		t.Errorf("potential range = %.3g..%.3g V, want a rise from ~0 ground", res.Scalar.Min, res.Scalar.Max)
+	}
+}

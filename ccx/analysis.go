@@ -74,6 +74,23 @@ func loadTypeOptions() []string {
 	return []string{string(LoadForce), string(LoadPressure), string(LoadGravity)}
 }
 
+// EMDrive selects how an electromagnetic (electric-conduction) study is driven.
+type EMDrive string
+
+const (
+	// EMVoltage prescribes the potential on both ends (applied voltage + ground): the
+	// Laplace problem, where the potential field is independent of conductivity.
+	EMVoltage EMDrive = "voltage"
+	// EMCurrent injects a current density on the loaded face(s) (*DFLUX) and grounds the
+	// first face: the Neumann problem, where the potential scales with 1/conductivity.
+	EMCurrent EMDrive = "current"
+)
+
+// emDriveOptions lists the panel dropdown choices in display order.
+func emDriveOptions() []string {
+	return []string{string(EMVoltage), string(EMCurrent)}
+}
+
 // standardGravityMMs2 is one g in CalculiX mm/s^2 units.
 const standardGravityMMs2 = 9810.0
 
@@ -129,6 +146,8 @@ type StudySettings struct {
 
 	VoltageV        float64 // prescribed potential on the first face for an electrostatic study (V)
 	ElectricalSigma float64 // electrical conductivity (consistent units) for an electrostatic study
+	EMDriveMode     EMDrive // how an electromagnetic study is driven (applied voltage vs injected current)
+	CurrentDensity  float64 // injected current density on the loaded faces (consistent units) for EMCurrent
 
 	SpecificHeat   float64 // specific heat capacity (consistent units) for transient coupled analysis
 	TransientTimeS float64 // total time (s) for a transient coupled study; 0 = steady state
@@ -166,6 +185,8 @@ func defaultSettings() StudySettings {
 		ResultField:     ResultVonMises,
 		VoltageV:        5,
 		ElectricalSigma: 1,
+		EMDriveMode:     EMVoltage,
+		CurrentDensity:  1,
 		SpecificHeat:    5e8, // steel-like, consistent units (mm,t,s): ~0.5 J/(g·K)
 		TransientTimeS:  0,   // steady state by default
 	}

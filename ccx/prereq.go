@@ -95,9 +95,10 @@ func checkHeatPrerequisites(m *AnalysisModel) error {
 	return nil
 }
 
-// checkElectrostaticPrerequisites validates an electric-conduction model: it needs a
-// positive electrical conductivity, a prescribed-potential face that resolved to nodes, and
-// a non-zero potential difference to drive a current (otherwise the field is uniformly zero).
+// checkElectrostaticPrerequisites validates an electric-conduction model: it needs a positive
+// electrical conductivity, a grounded/prescribed face that resolved to nodes, and a non-zero
+// drive — either a potential difference (voltage drive) or an injected current (current drive,
+// signalled by the presence of surface fluxes).
 func checkElectrostaticPrerequisites(m *AnalysisModel) error {
 	for _, mat := range m.distinctMaterials() {
 		if mat.ElectricalSigma <= 0 {
@@ -106,6 +107,12 @@ func checkElectrostaticPrerequisites(m *AnalysisModel) error {
 	}
 	if !hasTemperatureBC(m) {
 		return errors.New("the potential face resolved to no mesh nodes — pick a face of the part")
+	}
+	if len(m.HeatFluxes) > 0 {
+		if !hasHeatSource(m) {
+			return errors.New("no current — set a non-zero current density on the loaded face(s)")
+		}
+		return nil
 	}
 	if !hasPotentialDifference(m) {
 		return errors.New("no potential difference — set a non-zero applied voltage")

@@ -78,7 +78,9 @@ func loadsSection(s StudySettings) []wire.PanelControlSpec {
 		client.PanelTextBox("delta_t", "Temperature change ΔT (K)", formatNum(s.DeltaK)),
 		client.PanelTextBox("cold_temp", "Prescribed temperature (K)", formatNum(s.ColdTempK)),
 		client.PanelTextBox("heat_flux", "Heat flux on loaded faces", formatNum(s.HeatFluxQ)),
+		client.PanelDropdown("em_drive", "EM drive", emDriveOptions(), string(s.EMDriveMode)),
 		client.PanelTextBox("voltage", "Applied voltage on first face (V)", formatNum(s.VoltageV)),
+		client.PanelTextBox("current_density", "Injected current density", formatNum(s.CurrentDensity)),
 		client.PanelTextBox("deform_scale", "Deformation scale (0=auto)", formatNum(s.DeformScale)),
 	)
 }
@@ -169,7 +171,8 @@ func (e *Engine) applyMaterialEdit(controlID, value string) bool {
 	return true
 }
 
-// applyLoadEdit handles the load and boundary-condition controls.
+// applyLoadEdit handles the mechanical-load controls, delegating the thermal/electromagnetic
+// boundary-condition controls to applyFieldBCEdit.
 func (e *Engine) applyLoadEdit(controlID, value string) {
 	switch controlID {
 	case "load_type":
@@ -180,6 +183,14 @@ func (e *Engine) applyLoadEdit(controlID, value string) {
 		e.settings.PressureMPa = panelNum(value, e.settings.PressureMPa)
 	case "gravity":
 		e.settings.GravityG = panelNum(value, e.settings.GravityG)
+	default:
+		e.applyFieldBCEdit(controlID, value)
+	}
+}
+
+// applyFieldBCEdit handles the thermal and electromagnetic boundary-condition controls.
+func (e *Engine) applyFieldBCEdit(controlID, value string) {
+	switch controlID {
 	case "delta_t":
 		e.settings.DeltaK = panelNum(value, e.settings.DeltaK)
 	case "cold_temp":
@@ -188,6 +199,10 @@ func (e *Engine) applyLoadEdit(controlID, value string) {
 		e.settings.HeatFluxQ = panelNum(value, e.settings.HeatFluxQ)
 	case "voltage":
 		e.settings.VoltageV = panelNum(value, e.settings.VoltageV)
+	case "em_drive":
+		e.settings.EMDriveMode = EMDrive(strings.TrimSpace(value))
+	case "current_density":
+		e.settings.CurrentDensity = panelNum(value, e.settings.CurrentDensity)
 	}
 }
 
