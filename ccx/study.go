@@ -377,13 +377,18 @@ func applyCoupledThermal(m *AnalysisModel, settings StudySettings, groups *FaceG
 	}
 }
 
-// applyThermalBCs sets a heat-transfer model's boundary conditions: a prescribed
-// temperature on the first selected face and a surface heat flux on the rest.
+// applyThermalBCs sets a heat-transfer model's boundary conditions: a prescribed temperature
+// on the first selected face, and on the rest either a surface heat flux (flux drive) or a
+// convective film exchange with the ambient (convection drive).
 func applyThermalBCs(m *AnalysisModel, settings StudySettings, groups *FaceGroups, faces []string) {
 	m.Temperatures = []TemperatureBC{{Name: "TEMP", Nodes: groups.Nodes[faces[0]], TempK: settings.ColdTempK}}
 	var ef []ElemFace
 	for _, key := range faces[1:] {
 		ef = append(ef, groups.ElemFaces[key]...)
+	}
+	if settings.HeatDriveMode == HeatDriveFilm {
+		m.Films = []FilmBC{{Name: "FILM", Faces: ef, Coeff: settings.FilmCoeff, SinkTempK: settings.SinkTempK}}
+		return
 	}
 	m.HeatFluxes = []HeatFlux{{Name: "FLUX", Faces: ef, Flux: settings.HeatFluxQ}}
 }

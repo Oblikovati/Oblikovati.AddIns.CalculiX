@@ -89,10 +89,26 @@ func checkHeatPrerequisites(m *AnalysisModel) error {
 	if !hasTemperatureBC(m) {
 		return errors.New("the temperature face resolved to no mesh nodes — pick a face of the part")
 	}
+	if len(m.Films) > 0 {
+		if !hasFilm(m) {
+			return errors.New("no convection — set a non-zero film coefficient on the loaded face(s)")
+		}
+		return nil
+	}
 	if !hasHeatSource(m) {
 		return errors.New("no heat source — set a non-zero heat flux on the loaded face(s)")
 	}
 	return nil
+}
+
+// hasFilm reports whether a non-zero convective film exchange is applied.
+func hasFilm(m *AnalysisModel) bool {
+	for _, f := range m.Films {
+		if f.Coeff != 0 && len(f.Faces) > 0 {
+			return true
+		}
+	}
+	return false
 }
 
 // checkElectrostaticPrerequisites validates an electric-conduction model: it needs a positive

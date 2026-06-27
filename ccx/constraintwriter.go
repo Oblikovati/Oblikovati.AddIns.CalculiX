@@ -33,6 +33,12 @@ func constraintWriters(m *AnalysisModel) []ConstraintWriter {
 	if m.Centrifugal != nil {
 		cs = append(cs, centrifugalWriter{c: m.Centrifugal})
 	}
+	return appendThermalWriters(cs, m)
+}
+
+// appendThermalWriters appends the heat-transfer / thermal-stress boundary-condition writers:
+// uniform thermal load, prescribed temperatures, surface fluxes, and convective films.
+func appendThermalWriters(cs []ConstraintWriter, m *AnalysisModel) []ConstraintWriter {
 	if m.Thermal != nil {
 		cs = append(cs, thermalWriter{c: m.Thermal})
 	}
@@ -41,6 +47,9 @@ func constraintWriters(m *AnalysisModel) []ConstraintWriter {
 	}
 	for i := range m.HeatFluxes {
 		cs = append(cs, heatFluxWriter{c: &m.HeatFluxes[i]})
+	}
+	for i := range m.Films {
+		cs = append(cs, filmWriter{c: &m.Films[i]})
 	}
 	return cs
 }

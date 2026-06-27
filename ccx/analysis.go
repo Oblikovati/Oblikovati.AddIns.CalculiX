@@ -97,6 +97,21 @@ func emDriveOptions() []string {
 	return []string{string(EMVoltage), string(EMCurrent)}
 }
 
+// HeatDrive selects how the loaded faces of a heat-transfer study exchange heat.
+type HeatDrive string
+
+const (
+	// HeatDriveFlux applies a fixed surface heat flux (*DFLUX).
+	HeatDriveFlux HeatDrive = "flux"
+	// HeatDriveFilm applies convective film cooling/heating (*FILM): q = h·(T − T_sink).
+	HeatDriveFilm HeatDrive = "convection"
+)
+
+// heatDriveOptions lists the panel dropdown choices in display order.
+func heatDriveOptions() []string {
+	return []string{string(HeatDriveFlux), string(HeatDriveFilm)}
+}
+
 // standardGravityMMs2 is one g in CalculiX mm/s^2 units.
 const standardGravityMMs2 = 9810.0
 
@@ -150,6 +165,9 @@ type StudySettings struct {
 	Conductivity   float64         // thermal conductivity (consistent units) for heat transfer
 	ColdTempK      float64         // prescribed temperature on the first (support) face (K)
 	HeatFluxQ      float64         // surface heat flux on the remaining faces (heat transfer)
+	HeatDriveMode  HeatDrive       // how the loaded faces of a heat study exchange heat (flux vs convection)
+	FilmCoeff      float64         // convective film coefficient h (consistent units) for HeatDriveFilm
+	SinkTempK      float64         // ambient/sink temperature for convection (K)
 	ResultField    ResultFieldKind // which scalar field a stress result is coloured by
 
 	VoltageV        float64 // prescribed potential on the first face for an electrostatic study (V)
@@ -192,6 +210,9 @@ func defaultSettings() StudySettings {
 		Conductivity:    50,
 		ColdTempK:       0,
 		HeatFluxQ:       50,
+		HeatDriveMode:   HeatDriveFlux,
+		FilmCoeff:       0.5,
+		SinkTempK:       0,
 		ResultField:     ResultVonMises,
 		VoltageV:        5,
 		ElectricalSigma: 1,
