@@ -23,7 +23,7 @@ func TestStudyResultSummaryStatic(t *testing.T) {
 }
 
 func TestStudyResultSummaryHeat(t *testing.T) {
-	r := &StudyResult{ElementCount: 80, Heat: &HeatResult{MinK: 0, MaxK: 100}}
+	r := &StudyResult{ElementCount: 80, Scalar: &ScalarFieldResult{Label: "temperature", Min: 0, Max: 100, Unit: "K"}}
 	got := r.Summary()
 	if !strings.Contains(got, "temperature") || !strings.Contains(got, "0..100 K") {
 		t.Errorf("heat summary = %q", got)

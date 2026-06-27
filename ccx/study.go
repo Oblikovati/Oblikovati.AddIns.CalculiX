@@ -12,28 +12,36 @@ import (
 // StudyResult summarizes one FEA run. Static studies report stress/displacement; modal
 // and buckling studies report their eigenvalues (Modes) with a kind and unit.
 type StudyResult struct {
-	FrdPath          string      // the ccx .frd result file
-	NodeCount        int         // mesh node count
-	ElementCount     int         // mesh tet-element count
-	FieldLabel       string      // the rendered stress-result field ("von Mises stress", …)
-	FieldPeak        float64     // peak value of that field (static)
-	FieldUnit        string      // unit of that field ("MPa" / "mm")
-	MaxDisplacement  float64     // maximum nodal displacement magnitude (mm, static)
-	Modes            []float64   // natural frequencies (Hz) or buckling factors
-	ModeKind         string      // "natural frequencies" / "buckling factors"
-	ModeUnit         string      // "Hz" / "x load"
-	Heat             *HeatResult // set for a heat-transfer study
-	GraphicsClientID string      // the client-graphics group the result was pushed under
+	FrdPath          string             // the ccx .frd result file
+	NodeCount        int                // mesh node count
+	ElementCount     int                // mesh tet-element count
+	FieldLabel       string             // the rendered stress-result field ("von Mises stress", …)
+	FieldPeak        float64            // peak value of that field (static)
+	FieldUnit        string             // unit of that field ("MPa" / "mm")
+	MaxDisplacement  float64            // maximum nodal displacement magnitude (mm, static)
+	Modes            []float64          // natural frequencies (Hz) or buckling factors
+	ModeKind         string             // "natural frequencies" / "buckling factors"
+	ModeUnit         string             // "Hz" / "x load"
+	Scalar           *ScalarFieldResult // set for a DOF-11 field study (heat / electrostatic)
+	GraphicsClientID string             // the client-graphics group the result was pushed under
 }
 
-// HeatResult is the temperature range of a heat-transfer study.
-type HeatResult struct{ MinK, MaxK float64 }
+// ScalarFieldResult is the range of a nodal DOF-11 field: temperature for a heat-transfer
+// study, electric potential for the electrostatic analogy. Label/Unit make the status line
+// read in the analysis's own terms.
+type ScalarFieldResult struct {
+	Label string
+	Min   float64
+	Max   float64
+	Unit  string
+}
 
 // Summary renders the one-line status message for the run, formatted for the analysis type.
 func (r *StudyResult) Summary() string {
 	switch {
-	case r.Heat != nil:
-		return fmt.Sprintf("CalculiX: %d elements, temperature %.4g..%.4g K", r.ElementCount, r.Heat.MinK, r.Heat.MaxK)
+	case r.Scalar != nil:
+		return fmt.Sprintf("CalculiX: %d elements, %s %.4g..%.4g %s",
+			r.ElementCount, r.Scalar.Label, r.Scalar.Min, r.Scalar.Max, r.Scalar.Unit)
 	case len(r.Modes) > 0:
 		return fmt.Sprintf("CalculiX: %d elements, %s: %s", r.ElementCount, r.ModeKind, formatModes(r.Modes, r.ModeUnit))
 	default:
@@ -112,7 +120,9 @@ func (e *Engine) collectResults(stem string, mesh *TetMesh, groups *FaceGroups, 
 	case AnalysisFrequency, AnalysisBuckling:
 		return e.collectModal(stem, mesh, groups, faces, model)
 	case AnalysisHeatTransfer:
-		return e.collectHeat(stem, mesh, groups, faces, model)
+		return e.collectScalarField(stem, mesh, groups, faces, model, "temperature", "K")
+	case AnalysisElectromagnetic:
+		return e.collectScalarField(stem, mesh, groups, faces, model, "electric potential", "V")
 	default:
 		return e.collectStatic(stem, mesh, groups, faces, model)
 	}
@@ -143,6 +153,8 @@ func facesNeeded(s StudySettings) int {
 		return 1 // support / body field only
 	case AnalysisHeatTransfer:
 		return 2 // a prescribed-temperature face and a heat-flux face
+	case AnalysisElectromagnetic:
+		return 2 // an applied-potential face and a ground face
 	default:
 		return minFaces(s.LoadType)
 	}
@@ -209,30 +221,32 @@ func (e *Engine) collectModal(stem string, mesh *TetMesh, groups *FaceGroups, fa
 	}, nil
 }
 
-// collectHeat reads the steady-state nodal temperature field from the .frd, paints it as a
-// flood plot plus the thermal-BC aids, and returns the temperature range.
-func (e *Engine) collectHeat(stem string, mesh *TetMesh, groups *FaceGroups, faces []string, model *AnalysisModel) (*StudyResult, error) {
+// collectScalarField reads the steady-state nodal DOF-11 field from the .frd (temperature
+// for heat transfer, electric potential for the electrostatic analogy), paints it as a
+// flood plot plus the boundary-condition aids, and returns the field range labelled in the
+// analysis's own terms.
+func (e *Engine) collectScalarField(stem string, mesh *TetMesh, groups *FaceGroups, faces []string, model *AnalysisModel, label, unit string) (*StudyResult, error) {
 	f, err := os.Open(stem + ".frd")
 	if err != nil {
 		return nil, fmt.Errorf("open frd: %w", err)
 	}
 	defer f.Close()
-	temps, err := parseNodalTemperatures(f)
+	values, err := parseNodalTemperatures(f)
 	if err != nil {
 		return nil, err
 	}
-	if err := e.renderTemperature(mesh, temps); err != nil {
-		return nil, fmt.Errorf("render temperature: %w", err)
+	if err := e.renderScalarField(mesh, values); err != nil {
+		return nil, fmt.Errorf("render %s: %w", label, err)
 	}
 	if err := e.renderConstraints(mesh, groups, faces, model); err != nil {
 		return nil, fmt.Errorf("render constraints: %w", err)
 	}
-	lo, hi := minMaxField(temps)
+	lo, hi := minMaxField(values)
 	return &StudyResult{
 		FrdPath:          stem + ".frd",
 		NodeCount:        len(mesh.Nodes),
 		ElementCount:     len(mesh.Elements),
-		Heat:             &HeatResult{MinK: lo, MaxK: hi},
+		Scalar:           &ScalarFieldResult{Label: label, Min: lo, Max: hi, Unit: unit},
 		GraphicsClientID: resultClientID,
 	}, nil
 }
@@ -268,6 +282,10 @@ func buildModel(settings StudySettings, mesh *TetMesh, groups *FaceGroups, faces
 		applyThermalBCs(m, settings, groups, faces)
 		return m
 	}
+	if settings.Analysis == AnalysisElectromagnetic {
+		applyElectrostaticBCs(m, settings, groups, faces)
+		return m
+	}
 	m.Fixed = []FixedConstraint{{Name: "FIX", Nodes: groups.Nodes[faces[0]], DOFLow: 1, DOFHigh: 3}}
 	switch settings.Analysis {
 	case AnalysisFrequency:
@@ -290,6 +308,23 @@ func applyThermalBCs(m *AnalysisModel, settings StudySettings, groups *FaceGroup
 		ef = append(ef, groups.ElemFaces[key]...)
 	}
 	m.HeatFluxes = []HeatFlux{{Name: "FLUX", Faces: ef, Flux: settings.HeatFluxQ}}
+}
+
+// applyElectrostaticBCs sets an electric-conduction model's boundary conditions: the
+// applied potential on the first selected face and ground (0 V) on the rest. With both
+// ends prescribed (a potential drop across the conductor), the steady potential field is
+// the linear Laplace solution and is independent of the conductivity magnitude — the
+// conductor's *CONDUCTIVITY only scales the current, not the rendered potential. Both BCs
+// pin the temperature DOF (11), reusing the heat-transfer Dirichlet writer.
+func applyElectrostaticBCs(m *AnalysisModel, settings StudySettings, groups *FaceGroups, faces []string) {
+	var ground []int
+	for _, key := range faces[1:] {
+		ground = append(ground, groups.Nodes[key]...)
+	}
+	m.Temperatures = []TemperatureBC{
+		{Name: "VHIGH", Nodes: groups.Nodes[faces[0]], TempK: settings.VoltageV},
+		{Name: "VGND", Nodes: dedupeInts(ground), TempK: 0},
+	}
 }
 
 // applyLoad attaches the configured load to the model.

@@ -18,6 +18,7 @@ change later, not a rewrite.
 | 3 | **No edge identity in stroke results** (faces have a reference key, edges do not) | loads/BCs bind to **faces only** in v1; edge selections are rejected | edge reference keys in the stroke result |
 | 4 | **Client-graphics results are live-only** — they do not persist into the saved document | the result overlay is pushed live each run (same as the FEMM bridge) | a persisted result attribute set / document-scoped result store |
 | 5 | **No analytic surface evaluator** — meshes are built from a chordal tessellation | mesh-tolerance knob; nearest-face fallback for seam facets on tangent-continuous faces | a surface evaluator, or face-classified meshing |
+| 6 | **No surrounding-air mesh** (only the conductor solid is meshed) — blocks true CalculiX `*ELECTROMAGNETICS` (magnetostatics/induction need an A–V–Φ air domain) | electromagnetic analysis is scoped to **electric conduction** via the heat-transfer analogy on the conductor-only mesh (see [ADR-0003](ADR-0003-electromagnetic-scope.md)) | generate an air box around the part and tie the domain interfaces (a meshing project, not a deck change) |
 
 ## Decision
 

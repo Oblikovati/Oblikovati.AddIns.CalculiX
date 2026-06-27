@@ -12,8 +12,9 @@ import (
 // Client-graphics groups for the constraint visual aids (separate from the result so they
 // can be toggled or replaced independently).
 const (
-	supportsClientID = "ccx.supports"
-	loadsClientID    = "ccx.loads"
+	supportsClientID  = "ccx.supports"
+	loadsClientID     = "ccx.loads"
+	potentialClientID = "ccx.potential"
 )
 
 var (
@@ -21,6 +22,9 @@ var (
 	// arrows — the conventional FEA support/load colours.
 	supportColor = []float32{0.20, 0.70, 1.0, 1.0}
 	loadColor    = []float32{1.0, 0.25, 0.12, 1.0}
+	// highPotentialColor is the red of the applied-voltage face; the ground face reuses the
+	// cyan supportColor — a clear high/low pairing for an electrostatic study.
+	highPotentialColor = []float32{1.0, 0.25, 0.12, 1.0}
 )
 
 // maxConstraintGlyphs caps the glyphs drawn per face so a fine mesh does not bury the
@@ -35,6 +39,9 @@ const maxConstraintGlyphs = 24
 func (e *Engine) renderConstraints(mesh *TetMesh, groups *FaceGroups, faces []string, model *AnalysisModel) error {
 	index := mesh.nodeByID()
 	length := glyphScale(mesh)
+	if model.Analysis == AnalysisElectromagnetic {
+		return e.drawPotentialFaces(groups, faces, index, length)
+	}
 	if err := e.drawSupports(groups.Nodes[faces[0]], index, length); err != nil {
 		return err
 	}
@@ -42,6 +49,20 @@ func (e *Engine) renderConstraints(mesh *TetMesh, groups *FaceGroups, faces []st
 		return e.drawBodyLoad(mesh, model.Gravity.Dir, index, length)
 	}
 	return e.drawLoads(groups, faces[1:], loadDirection(model), index, length)
+}
+
+// drawPotentialFaces marks an electrostatic study's boundary faces: red cubes on the
+// applied-voltage face, cyan cubes on the ground face(s) — a high/low pairing in place of
+// the support/arrow symbols, which carry no meaning for a potential field.
+func (e *Engine) drawPotentialFaces(groups *FaceGroups, faces []string, index map[int]Node, length float64) error {
+	if err := e.drawCubes(potentialClientID, highPotentialColor, groups.Nodes[faces[0]], index, length); err != nil {
+		return err
+	}
+	var ground []int
+	for _, key := range faces[1:] {
+		ground = append(ground, groups.Nodes[key]...)
+	}
+	return e.drawCubes(supportsClientID, supportColor, ground, index, length)
 }
 
 // drawBodyLoad paints arrows spread over the body's surface to indicate a gravity body
@@ -69,14 +90,20 @@ func surfaceNodeIDs(mesh *TetMesh) []int {
 	return ids
 }
 
-// drawSupports paints a solid cube at each fixed-face node.
+// drawSupports paints a solid cyan cube at each fixed-face node.
 func (e *Engine) drawSupports(nodes []int, index map[int]Node, length float64) error {
+	return e.drawCubes(supportsClientID, supportColor, nodes, index, length)
+}
+
+// drawCubes paints a solid cube of the given colour at each node, under the given client
+// group — the shared glyph for any "this face is pinned to a value" boundary condition.
+func (e *Engine) drawCubes(clientID string, color []float32, nodes []int, index map[int]Node, length float64) error {
 	g := &glyphMesh{}
 	half := length * 0.16
 	for _, nid := range sampleNodes(nodes, maxConstraintGlyphs) {
 		g.cube(modelPoint(index[nid]), half)
 	}
-	return e.pushGlyphs(supportsClientID, g, supportColor)
+	return e.pushGlyphs(clientID, g, color)
 }
 
 // drawLoads paints a solid arrow at each loaded-face node, pointing along the load.

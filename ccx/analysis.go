@@ -18,7 +18,11 @@ const (
 	AnalysisThermomech AnalysisType = "thermomech"
 	// AnalysisHeatTransfer solves the steady-state temperature field (*HEAT TRANSFER).
 	AnalysisHeatTransfer AnalysisType = "heat transfer"
-	// AnalysisElectromagnetic is an electromagnetic analysis (CalculiX electromagnetics).
+	// AnalysisElectromagnetic is an electrostatic / electric-conduction analysis: the steady
+	// electric potential in a conductor, solved on the part's solid mesh via CalculiX's
+	// electric-thermal analogy (potential ↔ temperature DOF 11, electrical conductivity ↔
+	// *CONDUCTIVITY). True magnetostatics/induction needs the surrounding air meshed and is
+	// out of scope for a solid-only mesh.
 	AnalysisElectromagnetic AnalysisType = "electromagnetic"
 )
 
@@ -115,6 +119,9 @@ type StudySettings struct {
 	ColdTempK    float64         // prescribed temperature on the first (support) face (K)
 	HeatFluxQ    float64         // surface heat flux on the remaining faces (heat transfer)
 	ResultField  ResultFieldKind // which scalar field a stress result is coloured by
+
+	VoltageV        float64 // prescribed potential on the first face for an electrostatic study (V)
+	ElectricalSigma float64 // electrical conductivity (consistent units) for an electrostatic study
 }
 
 // eigenmodeCount returns the requested number of modes, clamped to a sensible minimum.
@@ -129,24 +136,26 @@ func (s StudySettings) eigenmodeCount() int {
 // mild-steel-like material, and a unit force load.
 func defaultSettings() StudySettings {
 	return StudySettings{
-		Analysis:     AnalysisStatic,
-		MeshSizeMM:   0,
-		ElementOrder: QuadraticTet,
-		DeformScale:  0,
-		YoungGPa:     210,
-		Poisson:      0.3,
-		DensityGCm3:  7.85,
-		LoadType:     LoadForce,
-		LoadN:        100,
-		PressureMPa:  1,
-		GravityG:     1,
-		Eigenmodes:   6,
-		ThermalAlpha: 1.2e-5,
-		DeltaK:       100,
-		Conductivity: 50,
-		ColdTempK:    0,
-		HeatFluxQ:    50,
-		ResultField:  ResultVonMises,
+		Analysis:        AnalysisStatic,
+		MeshSizeMM:      0,
+		ElementOrder:    QuadraticTet,
+		DeformScale:     0,
+		YoungGPa:        210,
+		Poisson:         0.3,
+		DensityGCm3:     7.85,
+		LoadType:        LoadForce,
+		LoadN:           100,
+		PressureMPa:     1,
+		GravityG:        1,
+		Eigenmodes:      6,
+		ThermalAlpha:    1.2e-5,
+		DeltaK:          100,
+		Conductivity:    50,
+		ColdTempK:       0,
+		HeatFluxQ:       50,
+		ResultField:     ResultVonMises,
+		VoltageV:        5,
+		ElectricalSigma: 1,
 	}
 }
 
@@ -160,5 +169,6 @@ func (s StudySettings) material() MaterialProps {
 		DensityTonneMM3: s.DensityGCm3 * gCm3ToTonneMM3,
 		ExpansionPerK:   s.ThermalAlpha,
 		Conductivity:    s.Conductivity,
+		ElectricalSigma: s.ElectricalSigma,
 	}
 }

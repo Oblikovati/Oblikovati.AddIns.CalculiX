@@ -14,7 +14,10 @@ func writeStepBegin(d *deckBuf, a AnalysisType, eigenCount int) {
 	case AnalysisBuckling:
 		d.line("*BUCKLE")
 		d.line("%d", eigenCount)
-	case AnalysisHeatTransfer:
+	case AnalysisHeatTransfer, AnalysisElectromagnetic:
+		// An electrostatic / electric-conduction study rides CalculiX's steady-state heat
+		// equation: electric potential is the temperature DOF and electrical conductivity is
+		// the thermal conductivity (see analysis.go AnalysisElectromagnetic).
 		d.line("*HEAT TRANSFER, STEADY STATE")
 	default:
 		d.line("*STATIC")
@@ -25,7 +28,9 @@ func writeStepBegin(d *deckBuf, a AnalysisType, eigenCount int) {
 // (mode shapes / deflection) always, and element stress only for a static stress study
 // (modal/buckling report eigenvalues, not a physical stress field).
 func writeStepOutput(d *deckBuf, a AnalysisType) {
-	if a == AnalysisHeatTransfer {
+	if a == AnalysisHeatTransfer || a == AnalysisElectromagnetic {
+		// NT is the nodal DOF-11 field: temperature for heat, electric potential for the
+		// electrostatic analogy.
 		d.line("*NODE FILE")
 		d.line("NT")
 		return
