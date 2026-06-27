@@ -13,6 +13,15 @@ type MaterialProps struct {
 	ExpansionPerK   float64 // *EXPANSION thermal coefficient (1/K); used by thermal stress
 	Conductivity    float64 // *CONDUCTIVITY (consistent units); used by heat transfer
 	ElectricalSigma float64 // electrical conductivity (consistent units); used by the electrostatic analogy
+	SpecificHeat    float64 // *SPECIFIC HEAT (consistent units); used by transient coupled analysis
+}
+
+// TransientStep parameterizes a time-dependent step: the initial time increment and the
+// total step time (the CalculiX "tinc, tper" data line). A nil TransientStep means the step
+// is steady-state.
+type TransientStep struct {
+	IncrementS float64 // initial time increment (s)
+	TotalS     float64 // total step time (s)
 }
 
 // TemperatureBC prescribes a fixed temperature on a node set (the temperature degree of
@@ -98,6 +107,8 @@ type AnalysisModel struct {
 	EigenmodeCount int             // number of modes/factors for *FREQUENCY / *BUCKLE
 	ResultField    ResultFieldKind // which scalar field a stress result is coloured by
 	Ties           []TieConstraint // bonded interfaces between touching bodies (*TIE)
+	InitialTempK   float64         // reference/initial temperature (*INITIAL CONDITIONS); 0 = default
+	Transient      *TransientStep  // time stepping for a transient coupled study; nil = steady state
 }
 
 // sections returns the model's material sections, deriving a single section over every
@@ -133,8 +144,19 @@ func (m *AnalysisModel) distinctMaterials() []MaterialProps {
 // the body force; a frequency analysis needs it for the mass matrix. A static stress study
 // with only surface loads, and a buckling analysis (a static eigenproblem), do not.
 func (m *AnalysisModel) needsDensity() bool {
-	return m.Gravity != nil || m.Analysis == AnalysisFrequency
+	return m.Gravity != nil || m.Analysis == AnalysisFrequency || m.isTransient()
 }
+
+// isTransient reports whether the model solves a time-dependent step, which needs the
+// density and specific heat for the transient heat-capacity term.
+func (m *AnalysisModel) isTransient() bool { return m.Transient != nil }
+
+// isCoupledThermal reports whether the analysis solves temperature and displacement together.
+func (m *AnalysisModel) isCoupledThermal() bool { return m.Analysis == AnalysisCoupledThermal }
+
+// needsExpansion reports whether *EXPANSION must be written: an uncoupled thermal-stress load
+// or a coupled thermomechanical study both produce thermal strain against it.
+func (m *AnalysisModel) needsExpansion() bool { return m.Thermal != nil || m.isCoupledThermal() }
 
 // loadDirection returns the model's load direction for the visual aids, defaulting to -Z.
 func loadDirection(m *AnalysisModel) [3]float64 {

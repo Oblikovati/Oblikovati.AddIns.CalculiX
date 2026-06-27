@@ -40,6 +40,7 @@ func panelControls(s StudySettings) []wire.PanelControlSpec {
 		section("Solver Parameters",
 			client.PanelDropdown("analysis", "Analysis type", analysisTypeOptions(), string(s.Analysis)),
 			client.PanelTextBox("eigenmodes", "Modes (frequency/buckling)", formatNum(float64(s.Eigenmodes))),
+			client.PanelTextBox("transient_time", "Transient total time (s, 0=steady)", formatNum(s.TransientTimeS)),
 		),
 		section("Mesh",
 			client.PanelTextBox("mesh_size", "Max element size (mm, 0=auto)", formatNum(s.MeshSizeMM)),
@@ -63,6 +64,7 @@ func materialSection(s StudySettings) []wire.PanelControlSpec {
 		client.PanelTextBox("alpha", "Thermal expansion (1/K)", formatNum(s.ThermalAlpha)),
 		client.PanelTextBox("conductivity", "Thermal conductivity", formatNum(s.Conductivity)),
 		client.PanelTextBox("elec_sigma", "Electrical conductivity", formatNum(s.ElectricalSigma)),
+		client.PanelTextBox("specific_heat", "Specific heat (transient)", formatNum(s.SpecificHeat)),
 	)
 }
 
@@ -127,6 +129,8 @@ func (e *Engine) applyPanelEdit(controlID, value string) {
 		e.settings.DeformScale = panelNum(value, e.settings.DeformScale)
 	case "eigenmodes":
 		e.settings.Eigenmodes = int(panelNum(value, float64(e.settings.Eigenmodes)))
+	case "transient_time":
+		e.settings.TransientTimeS = panelNum(value, e.settings.TransientTimeS)
 	case "result_field":
 		e.settings.ResultField = ResultFieldKind(strings.TrimSpace(value))
 	default:
@@ -157,6 +161,8 @@ func (e *Engine) applyMaterialEdit(controlID, value string) bool {
 		e.settings.Conductivity = panelNum(value, e.settings.Conductivity)
 	case "elec_sigma":
 		e.settings.ElectricalSigma = panelNum(value, e.settings.ElectricalSigma)
+	case "specific_heat":
+		e.settings.SpecificHeat = panelNum(value, e.settings.SpecificHeat)
 	default:
 		return false
 	}

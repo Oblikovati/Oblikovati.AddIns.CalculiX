@@ -10,28 +10,35 @@ package ccx
 // notes from the solver.
 func writeMaterials(d *deckBuf, m *AnalysisModel) {
 	for _, mat := range m.distinctMaterials() {
-		writeMaterialBlock(d, mat, m.Analysis, m.needsDensity(), m.Thermal != nil)
+		writeMaterialBlock(d, mat, m)
 	}
 }
 
-// writeMaterialBlock emits one *MATERIAL and the property cards the analysis requires.
-func writeMaterialBlock(d *deckBuf, mat MaterialProps, a AnalysisType, density, thermal bool) {
+// writeMaterialBlock emits one *MATERIAL and the property cards the analysis requires:
+// elastic constants (mechanical analyses), density (body load / modal / transient), expansion
+// (thermal stress and coupled), conductivity (heat / electrostatic / coupled), and specific
+// heat (transient coupled, for the heat-capacity term).
+func writeMaterialBlock(d *deckBuf, mat MaterialProps, m *AnalysisModel) {
 	d.line("*MATERIAL, NAME=%s", mat.Name)
-	if needsElastic(a) {
+	if needsElastic(m.Analysis) {
 		d.line("*ELASTIC")
 		d.line("%.10g, %.10g", mat.YoungMPa, mat.Poisson)
 	}
-	if density {
+	if m.needsDensity() {
 		d.line("*DENSITY")
 		d.line("%.10g", mat.DensityTonneMM3)
 	}
-	if thermal {
+	if m.needsExpansion() {
 		d.line("*EXPANSION, ZERO=0.")
 		d.line("%.10g", mat.ExpansionPerK)
 	}
-	if cond, ok := conductivityForMaterial(mat, a); ok {
+	if cond, ok := conductivityForMaterial(mat, m.Analysis); ok {
 		d.line("*CONDUCTIVITY")
 		d.line("%.10g", cond)
+	}
+	if m.isTransient() {
+		d.line("*SPECIFIC HEAT")
+		d.line("%.10g", mat.SpecificHeat)
 	}
 }
 
@@ -47,7 +54,7 @@ func needsElastic(a AnalysisType) bool {
 // electrostatic analogy. The boolean is false for analyses that write no conductivity.
 func conductivityForMaterial(mat MaterialProps, a AnalysisType) (float64, bool) {
 	switch a {
-	case AnalysisHeatTransfer:
+	case AnalysisHeatTransfer, AnalysisCoupledThermal:
 		return mat.Conductivity, true
 	case AnalysisElectromagnetic:
 		return mat.ElectricalSigma, true
