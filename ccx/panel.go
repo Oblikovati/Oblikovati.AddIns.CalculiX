@@ -53,8 +53,33 @@ func panelControls(s StudySettings) []wire.PanelControlSpec {
 		supportSection(s),
 		loadsSection(s),
 		contactSection(s),
+		constraintSection(s),
 		[]wire.PanelControlSpec{client.PanelButton("run", "Run CalculiX", RunStudyCommandID)},
 	)
+}
+
+// constraintSection builds the constraint-builder group: pick a constraint type, then Add From
+// Selection snapshots the picked faces + the relevant parameter fields into the study's explicit
+// constraint list (which then replaces the implicit one-support/one-load default). Clear empties
+// it. With no list widget in the host vocabulary, the list is add/clear-only — the count label is
+// the feedback that a constraint landed.
+func constraintSection(s StudySettings) []wire.PanelControlSpec {
+	return section("Constraints (multi-constraint builder)",
+		client.PanelDropdown("constraint_type", "Constraint type", constraintKindOptions(), string(builderKindOrDefault(s.BuilderKind))),
+		client.PanelButton("add_constraint", "Add from selection", AddConstraintCommandID),
+		client.PanelLabel("constraint_count", "Constraints added: "+strconv.Itoa(len(s.Constraints))),
+		client.PanelButton("clear_constraints", "Clear constraints", ClearConstraintsCommandID),
+	)
+}
+
+// constraintKindOptions lists the builder's constraint-type choices in display order.
+func constraintKindOptions() []string {
+	kinds := builderKinds()
+	out := make([]string, len(kinds))
+	for i, k := range kinds {
+		out[i] = string(k)
+	}
+	return out
 }
 
 // contactSection builds the multi-body interface control group: whether touching bodies are
@@ -214,8 +239,12 @@ func (e *Engine) applyPanelEdit(controlID, value string) {
 	}
 }
 
-// applyMaterialOrLoadEdit handles the material and load control edits.
+// applyMaterialOrLoadEdit handles the material, load, and constraint-builder control edits.
 func (e *Engine) applyMaterialOrLoadEdit(controlID, value string) {
+	if controlID == "constraint_type" {
+		e.settings.BuilderKind = ConstraintKind(strings.TrimSpace(value))
+		return
+	}
 	if e.applyMaterialEdit(controlID, value) {
 		return
 	}
