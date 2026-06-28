@@ -59,13 +59,24 @@ func (e *Engine) Notify(ev []byte) {
 	}
 }
 
-// onCommandStarted launches a study when our run command fires.
+// onCommandStarted dispatches our registered commands. The study runs through launchStudy's
+// coalescing guard; the constraint-builder commands make host calls (read selection, redraw the
+// panel), so — like the study — they must run OFF the session goroutine to avoid the dispatcher
+// deadlock, hence the goroutines.
 func (e *Engine) onCommandStarted(ev []byte) {
 	var c struct {
 		Command string `json:"command"`
 	}
-	if json.Unmarshal(ev, &c) == nil && c.Command == RunStudyCommandID {
+	if json.Unmarshal(ev, &c) != nil {
+		return
+	}
+	switch c.Command {
+	case RunStudyCommandID:
 		e.launchStudy()
+	case AddConstraintCommandID:
+		go e.addConstraintFromSelection()
+	case ClearConstraintsCommandID:
+		go e.clearConstraints()
 	}
 }
 

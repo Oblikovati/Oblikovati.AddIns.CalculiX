@@ -262,6 +262,9 @@ type StudySettings struct {
 	// Constraints is the explicit list of study constraints the panel builder adds. When empty,
 	// the mechanical model is synthesized from the implicit convention (see defaultConstraints).
 	Constraints []ConstraintSpec
+	// BuilderKind is the constraint type the panel builder will add on the next "Add from
+	// selection"; its parameters come from the matching flat fields above.
+	BuilderKind ConstraintKind
 }
 
 // eigenmodeCount returns the requested number of modes, clamped to a sensible minimum.
