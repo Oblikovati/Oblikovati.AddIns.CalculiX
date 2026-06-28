@@ -340,35 +340,15 @@ func buildModel(settings StudySettings, mesh *TetMesh, groups *FaceGroups, faces
 	if applyFieldAnalysisBCs(m, settings, groups, faces) {
 		return m
 	}
-	m.Fixed = []FixedConstraint{{Name: "FIX", Nodes: groups.Nodes[faces[0]], DOFLow: 1, DOFHigh: 3}}
-	switch settings.Analysis {
-	case AnalysisFrequency:
-		// A modal (free-vibration) analysis applies no load.
-	case AnalysisThermomech:
-		// A thermal-stress analysis applies a uniform temperature field, no mechanical load.
-		m.Thermal = &ThermalLoad{DeltaK: settings.DeltaK}
-	default:
-		applyStaticSupport(m, settings, groups, faces[0], mesh)
-		applyLoad(m, settings, groups, faces[1:])
+	// The mechanical (static / modal / thermal-stress) path resolves a list of constraint specs:
+	// the user's explicit constraints, or — when none were added — the synthesized default that
+	// reproduces the implicit first-face-support / remaining-faces-load convention.
+	specs := settings.Constraints
+	if len(specs) == 0 {
+		specs = defaultConstraints(settings, faces)
 	}
+	resolveSpecs(specs, &ResolveContext{Model: m, Mesh: mesh, Groups: groups})
 	return m
-}
-
-// applyStaticSupport swaps the rigid clamp on the support face for a grounded elastic foundation
-// when the study requests an elastic support (SupportElastic). The fixed clamp set earlier in
-// buildModel is kept for the default (fixed) case; here the elastic case replaces it with a
-// *SPRING foundation, numbered above the solid mesh's element ids, so the face can settle.
-func applyStaticSupport(m *AnalysisModel, settings StudySettings, groups *FaceGroups, supportFace string, mesh *TetMesh) {
-	if settings.SupportType != SupportElastic {
-		return
-	}
-	m.Fixed = nil
-	m.Springs = []SpringSupport{{
-		Name:           "FIX",
-		Nodes:          groups.Nodes[supportFace],
-		StiffnessTotal: settings.SpringStiffMM,
-		FirstElem:      maxElementID(mesh) + 1,
-	}}
 }
 
 // applyFieldAnalysisBCs applies the boundary conditions for the DOF-11 field analyses
@@ -516,50 +496,6 @@ func applyCurrentDrive(m *AnalysisModel, settings StudySettings, groups *FaceGro
 		ef = append(ef, groups.ElemFaces[key]...)
 	}
 	m.HeatFluxes = []HeatFlux{{Name: "ICURR", Faces: ef, Flux: settings.CurrentDensity}}
-}
-
-// applyLoad attaches the configured load to the model.
-func applyLoad(m *AnalysisModel, settings StudySettings, groups *FaceGroups, loadFaces []string) {
-	switch settings.LoadType {
-	case LoadGravity:
-		m.Gravity = &GravityLoad{Accel: settings.GravityG * standardGravityMMs2, Dir: [3]float64{0, 0, -1}}
-	case LoadCentrifugal:
-		// v1 convention: rotation about the Z axis through the origin.
-		m.Centrifugal = &CentrifugalLoad{
-			Omega2:    settings.RotationRadS * settings.RotationRadS,
-			AxisPoint: [3]float64{0, 0, 0},
-			AxisDir:   [3]float64{0, 0, 1},
-		}
-	case LoadPressure, LoadHydrostatic:
-		m.Pressures = []PressureLoad{pressureLoadFor(m, settings, groups, loadFaces)}
-	case LoadDisplacement:
-		var nodes []int
-		for _, key := range loadFaces {
-			nodes = append(nodes, groups.Nodes[key]...)
-		}
-		m.Displacements = []DisplacementBC{{Name: "PRESCR", Nodes: dedupeInts(nodes), DOF: 3, Value: settings.DisplacementMM}}
-	default: // LoadForce
-		var nodes []int
-		for _, key := range loadFaces {
-			nodes = append(nodes, groups.Nodes[key]...)
-		}
-		m.Forces = []ForceLoad{{Name: "LOAD", Nodes: dedupeInts(nodes), Dir: [3]float64{0, 0, -1}, TotalN: settings.LoadN}}
-	}
-}
-
-// pressureLoadFor builds the surface-pressure load on the loaded faces: a uniform pressure, or a
-// depth-varying hydrostatic pressure (one value per face from its centroid depth) when the load
-// type is hydrostatic.
-func pressureLoadFor(m *AnalysisModel, settings StudySettings, groups *FaceGroups, loadFaces []string) PressureLoad {
-	var faces []ElemFace
-	for _, key := range loadFaces {
-		faces = append(faces, groups.ElemFaces[key]...)
-	}
-	if settings.LoadType == LoadHydrostatic {
-		return PressureLoad{Name: "LOAD", Faces: faces,
-			PerFaceMPa: hydrostaticPressures(m.Mesh, faces, settings.HydroGradientMPaMM, settings.HydroSurfaceZ)}
-	}
-	return PressureLoad{Name: "LOAD", Faces: faces, MPa: settings.PressureMPa}
 }
 
 // minFaces is the number of selected faces a load type needs: a body load (gravity,

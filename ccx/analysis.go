@@ -258,6 +258,10 @@ type StudySettings struct {
 
 	HydroGradientMPaMM float64 // hydrostatic pressure gradient γ (MPa/mm = ρg) for LoadHydrostatic
 	HydroSurfaceZ      float64 // height (mm) of the fluid free surface for LoadHydrostatic
+
+	// Constraints is the explicit list of study constraints the panel builder adds. When empty,
+	// the mechanical model is synthesized from the implicit convention (see defaultConstraints).
+	Constraints []ConstraintSpec
 }
 
 // eigenmodeCount returns the requested number of modes, clamped to a sensible minimum.
