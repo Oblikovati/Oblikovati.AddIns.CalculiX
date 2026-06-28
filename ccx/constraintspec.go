@@ -8,6 +8,8 @@ type ConstraintKind string
 
 const (
 	KindFixed          ConstraintKind = "fixed"
+	KindRoller         ConstraintKind = "roller"
+	KindSymmetry       ConstraintKind = "symmetry"
 	KindElasticSupport ConstraintKind = "elastic support"
 	KindForce          ConstraintKind = "force"
 	KindPressure       ConstraintKind = "pressure"

@@ -14,6 +14,7 @@ import (
 type FaceGroups struct {
 	Nodes     map[string][]int
 	ElemFaces map[string][]ElemFace
+	Normals   map[string][3]float64 // each bound face's outward unit normal (for roller/symmetry DOF)
 }
 
 // normalAlignMin is the minimum |dot| of two unit normals to consider two facets coplanar
@@ -42,6 +43,7 @@ func (e *Engine) buildFaceGroups(faceKeys []string, mesh *TetMesh, solids []wire
 	out := &FaceGroups{
 		Nodes:     make(map[string][]int, len(faceKeys)),
 		ElemFaces: make(map[string][]ElemFace, len(faceKeys)),
+		Normals:   make(map[string][3]float64, len(faceKeys)),
 	}
 	for _, key := range faceKeys {
 		host, err := e.pullFaceOnAnyBody(key, solids)
@@ -55,6 +57,7 @@ func (e *Engine) buildFaceGroups(faceKeys []string, mesh *TetMesh, solids []wire
 		}
 		out.Nodes[key] = match.nodeList()
 		out.ElemFaces[key] = resolveElemFaces(match.facets, faceIndex)
+		out.Normals[key] = match.normal()
 	}
 	return out, nil
 }
