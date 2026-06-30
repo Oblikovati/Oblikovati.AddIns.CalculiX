@@ -1243,3 +1243,35 @@ Expected: `femmodel` coverage > 80% (every function has a test).
 - **Spec coverage (Phase 0a + Phase 1):** A1–A5 implement the spec's A1 (`referenceList`) and A2 (`TaskPanelSpec`); A6 cuts the release. B1–B6 implement the spec's Pillar-B `femmodel` aggregate + `projectAnalysis` seam (ADR-B1). Spec items **deferred with rationale** (not gaps): the GPL-host rendering/router for the new API (spec's remainder of Phase 0a) → separate `Phase 0a-host` plan; the engine-ownership flip + `ConstraintObject` (spec put a flip in Phase 1) → moved to Phase 2 to avoid rewriting the soon-retired `panel.go` twice. The graphics API (A3–A5 of the spec) is Phase 0b, out of this plan's scope.
 - **Placeholder scan:** none — every step has concrete code and exact commands/paths.
 - **Type consistency:** `projectAnalysis` returns `(StudySettings, []ConstraintSpec)` matching the spec; `elementOrder(bool) ElementOrder` used consistently; `ResultObject.Field`/`SolverObject.AnalysisType` are the underlying strings of `ccx.ResultFieldKind`/`ccx.AnalysisType`, converted at the seam; ids (`solver`/`mesh`/`mat1`/`result1`) are unique and stable.
+
+## Part B — execution outcome (2026-06-30)
+
+Part B (Tasks B1–B7) executed subagent-driven, all reviews clean. Final whole-branch
+review (opus): **READY WITH MINOR FOLLOW-UPS** — no Critical/Important; seam purity,
+additive constraint, and full-`StudySettings` default round-trip verified field-by-field;
+femmodel coverage 89.6%, 127 tests green, lint clean. Commits `1af7597..4d01d9f`.
+
+**Deferred to Phase 2 (none merge-blocking, carried from per-task + final review):**
+
+1. **Analysis construction contract / projection symmetry** — `projectAnalysis` reads
+   `Solver()`/`Mesh()` unconditionally but guards `DefaultMaterial()`/`PrimaryResult()`
+   with `ok`. A zero-value `&femmodel.Analysis{}` (constructable since fields are
+   unexported) projects `AnalysisType("")` and `LinearTet` (flips the `QuadraticTet`
+   default). Latent in Phase 1 (only `NewDefaultAnalysis` constructs). Fix: make the zero
+   value obviously-uninitialized (sentinel) or guard solver/mesh symmetrically, when the
+   engine flip lands.
+2. **Compile-time interface assertions** — add `var _ FEMObject = (*SolverObject)(nil)`
+   (etc.) for all four objects when wiring them into the engine/browser tree.
+3. **Slice aliasing** — `Analysis.Materials()`/`Results()` return the backing slice, and
+   `projectAnalysis` returns `s, s.Constraints` aliasing the struct's array. Harmless now
+   (Phase-1 constraints are nil); add defensive copies when `ConstraintObject` +
+   `Analysis.Constraints()` arrive and the tree populates constraints.
+3. **Multi-material/result collapse** — projection takes only `DefaultMaterial()`/
+   `PrimaryResult()`; grow the material seam for per-body + thermal/EM/hyperelastic before
+   multi-material editing ships.
+4. **Coverage gap** — directed tests for `DefaultMaterial()`'s ScopeAll-not-first and
+   empty-materials branches (the 89.6%→100% gap).
+
+The **engine ownership flip** (`Engine.analysis *femmodel.Analysis`, `RunStudyOnHost`
+calling `projectAnalysis`, retiring `panel.go`) remains folded into **Phase 2** alongside
+the browser tree, as planned.
