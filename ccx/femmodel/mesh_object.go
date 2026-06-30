@@ -14,6 +14,6 @@ func newMeshObject(id string, maxSizeMM float64, quadratic bool) MeshObject {
 	return MeshObject{id: id, MaxSizeMM: maxSizeMM, Quadratic: quadratic}
 }
 
-func (o MeshObject) ObjectID() string  { return o.id }
+func (o MeshObject) ObjectID() string   { return o.id }
 func (o MeshObject) Category() Category { return CategoryMesh }
 func (o MeshObject) Name() string       { return "Mesh" }

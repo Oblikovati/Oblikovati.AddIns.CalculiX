@@ -22,6 +22,6 @@ func newMaterialObject(id, name string, young, poisson, density, yield float64, 
 	}
 }
 
-func (o MaterialObject) ObjectID() string  { return o.id }
+func (o MaterialObject) ObjectID() string   { return o.id }
 func (o MaterialObject) Category() Category { return CategoryMaterial }
 func (o MaterialObject) Name() string       { return o.name }

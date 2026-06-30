@@ -14,6 +14,6 @@ func newResultObject(id, field string, deformScale float64) ResultObject {
 	return ResultObject{id: id, Field: field, DeformScale: deformScale}
 }
 
-func (o ResultObject) ObjectID() string  { return o.id }
+func (o ResultObject) ObjectID() string   { return o.id }
 func (o ResultObject) Category() Category { return CategoryResult }
 func (o ResultObject) Name() string       { return "Results" }

@@ -17,5 +17,5 @@ func newSolverObject(id, analysisType string, eigenmodes int, transientS float64
 }
 
 func (o SolverObject) ObjectID() string   { return o.id }
-func (o SolverObject) Category() Category  { return CategorySolver }
-func (o SolverObject) Name() string        { return "Solver" }
+func (o SolverObject) Category() Category { return CategorySolver }
+func (o SolverObject) Name() string       { return "Solver" }
