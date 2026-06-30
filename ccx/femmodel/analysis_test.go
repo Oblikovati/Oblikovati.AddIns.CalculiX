@@ -36,3 +36,27 @@ func TestAddMaterialAssignsUniqueIDs(t *testing.T) {
 		t.Fatalf("DefaultMaterial lost after adding a scoped material")
 	}
 }
+
+func TestSetSolverPreservesID(t *testing.T) {
+	a := NewDefaultAnalysis()
+	origID := a.Solver().ObjectID()
+	a.SetSolver(newSolverObject("other", "frequency", 12, 0))
+	if a.Solver().ObjectID() != origID {
+		t.Fatalf("SetSolver changed id: got %q want %q", a.Solver().ObjectID(), origID)
+	}
+	if a.Solver().AnalysisType != "frequency" || a.Solver().Eigenmodes != 12 {
+		t.Fatalf("SetSolver did not update fields: %+v", a.Solver())
+	}
+}
+
+func TestSetMeshPreservesID(t *testing.T) {
+	a := NewDefaultAnalysis()
+	origID := a.Mesh().ObjectID()
+	a.SetMesh(newMeshObject("other", 2.5, false))
+	if a.Mesh().ObjectID() != origID {
+		t.Fatalf("SetMesh changed id: got %q want %q", a.Mesh().ObjectID(), origID)
+	}
+	if a.Mesh().MaxSizeMM != 2.5 || a.Mesh().Quadratic {
+		t.Fatalf("SetMesh did not update fields: %+v", a.Mesh())
+	}
+}
