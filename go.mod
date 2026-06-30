@@ -16,4 +16,4 @@ module oblikovati.org/calculix
 
 go 1.24.0
 
-require oblikovati.org/api v0.100.1
+require oblikovati.org/api v0.102.0
