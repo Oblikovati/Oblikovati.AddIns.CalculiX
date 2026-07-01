@@ -2,8 +2,6 @@
 
 package ccx
 
-import "oblikovati.org/api/wire"
-
 // RunStudyCommandID is the host command the add-in registers; firing it (a ribbon click or
 // the MCP bridge's execute_command) runs the FEA study on the active part.
 const RunStudyCommandID = "CCX.RunStudy"
@@ -14,6 +12,21 @@ const (
 	AddConstraintCommandID    = "CCX.AddConstraint"
 	ClearConstraintsCommandID = "CCX.ClearConstraints"
 )
+
+// ShowPanelCommandID / ShowTreeCommandID re-open the study panel / Analysis tree from the ribbon.
+const (
+	ShowPanelCommandID = "CCX.ShowPanel"
+	ShowTreeCommandID  = "CCX.ShowTree"
+)
+
+// ccxCommands is the exhaustive command list; RegisterCommands places each on the FEA tab.
+var ccxCommands = []struct{ id, name, tip string }{
+	{RunStudyCommandID, "Run Stress Analysis", "Mesh, solve, and visualize the stress and displacement of the active part with CalculiX."},
+	{AddConstraintCommandID, "Add Constraint From Selection", "Add the selected face(s) as a study constraint of the chosen type."},
+	{ClearConstraintsCommandID, "Clear Constraints", "Remove all study constraints added from selection."},
+	{ShowPanelCommandID, "Study Panel", "Open the CalculiX study-parameters panel."},
+	{ShowTreeCommandID, "Analysis Tree", "Open the CalculiX Analysis browser tree."},
+}
 
 // Setup performs the one-time host-facing initialization: register the study command, show
 // the study-parameters panel, and declare the Analysis browser tree. It MUST NOT run on the
@@ -30,27 +43,13 @@ func (e *Engine) Setup() error {
 	return err
 }
 
-// RegisterCommands registers the FEA study command with the host so it is invokable the same
-// way a ribbon click is — including over the MCP bridge's execute_command. The host action is
-// a no-op; executing the command fires command.started, which Notify turns into a study run.
+// RegisterCommands registers every CalculiX command on the FEA ribbon tab (also invokable over
+// the MCP bridge's execute_command). Command actions fire command.started, which Notify dispatches.
 func (e *Engine) RegisterCommands() error {
-	if _, err := e.api.Commands().Create(wire.CreateCommandArgs{
-		ID:          RunStudyCommandID,
-		DisplayName: "Run Stress Analysis",
-		Category:    "CalculiX",
-		Tooltip:     "Mesh, solve, and visualize the stress and displacement of the active part with CalculiX.",
-	}); err != nil {
-		return err
+	for _, c := range ccxCommands {
+		if _, err := e.api.Commands().Create(commandArgs(c.id, c.name, c.tip)); err != nil {
+			return err
+		}
 	}
-	if _, err := e.api.Commands().Create(wire.CreateCommandArgs{
-		ID: AddConstraintCommandID, DisplayName: "Add Constraint From Selection", Category: "CalculiX",
-		Tooltip: "Add the selected face(s) as a study constraint of the chosen type.",
-	}); err != nil {
-		return err
-	}
-	_, err := e.api.Commands().Create(wire.CreateCommandArgs{
-		ID: ClearConstraintsCommandID, DisplayName: "Clear Constraints", Category: "CalculiX",
-		Tooltip: "Remove all study constraints added from selection.",
-	})
-	return err
+	return nil
 }

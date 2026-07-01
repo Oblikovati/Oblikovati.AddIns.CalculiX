@@ -15,15 +15,34 @@ import (
 // it is asked to call and returns an empty OK body, enough to drive the M0 scaffold
 // (command + panel registration, the Notify → study → status path).
 type recordingHost struct {
-	mu    sync.Mutex
-	calls []string
+	mu          sync.Mutex
+	calls       []string
+	createdCmds []wire.CreateCommandArgs // every commands.create request, decoded for placement assertions
 }
 
-func (h *recordingHost) Call(method string, _ []byte) ([]byte, error) {
+func (h *recordingHost) Call(method string, payload []byte) ([]byte, error) {
 	h.mu.Lock()
 	h.calls = append(h.calls, method)
+	if method == wire.MethodCommandsCreate {
+		var a wire.CreateCommandArgs
+		if json.Unmarshal(payload, &a) == nil {
+			h.createdCmds = append(h.createdCmds, a)
+		}
+	}
 	h.mu.Unlock()
 	return []byte("{}"), nil
+}
+
+// createdCommandTabs decodes every recorded MethodCommandsCreate payload and returns
+// a map of command ID → Tab so tests can assert placement without knowing order.
+func (h *recordingHost) createdCommandTabs() map[string]string {
+	h.mu.Lock()
+	defer h.mu.Unlock()
+	tabs := make(map[string]string, len(h.createdCmds))
+	for _, a := range h.createdCmds {
+		tabs[a.ID] = a.Tab
+	}
+	return tabs
 }
 
 func (h *recordingHost) saw(method string) bool {
@@ -122,4 +141,38 @@ func waitFor(t *testing.T, cond func() bool) {
 		time.Sleep(time.Millisecond)
 	}
 	t.Fatal("waitFor: condition not satisfied within 2 s")
+}
+
+// commandStartedEvent builds the bytes for a command.started event carrying the given command id.
+func commandStartedEvent(id string) []byte {
+	ev, _ := json.Marshal(map[string]string{"type": wire.EventCommandStarted, "command": id})
+	return ev
+}
+
+func TestRegisteredCommandsLandOnFEATab(t *testing.T) {
+	h := &recordingHost{}
+	if err := NewEngine(h).RegisterCommands(); err != nil {
+		t.Fatalf("RegisterCommands: %v", err)
+	}
+	got := h.createdCommandTabs()
+	for _, id := range []string{RunStudyCommandID, AddConstraintCommandID, ClearConstraintsCommandID,
+		ShowPanelCommandID, ShowTreeCommandID} {
+		if got[id] != "FEA" {
+			t.Errorf("command %q on tab %q, want FEA", id, got[id])
+		}
+	}
+}
+
+func TestShowTreeCommandReopensTree(t *testing.T) {
+	h := &recordingHost{}
+	e := NewEngine(h)
+	e.onCommandStarted(commandStartedEvent(ShowTreeCommandID))
+	waitFor(t, func() bool { return h.saw(wire.MethodBrowserSetPane) })
+}
+
+func TestShowPanelCommandReopensPanel(t *testing.T) {
+	h := &recordingHost{}
+	e := NewEngine(h)
+	e.onCommandStarted(commandStartedEvent(ShowPanelCommandID))
+	waitFor(t, func() bool { return h.saw(wire.MethodDockableWindowsSet) })
 }
