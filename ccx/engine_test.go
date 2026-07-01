@@ -169,3 +169,10 @@ func TestShowTreeCommandReopensTree(t *testing.T) {
 	e.onCommandStarted(commandStartedEvent(ShowTreeCommandID))
 	waitFor(t, func() bool { return h.saw(wire.MethodBrowserSetPane) })
 }
+
+func TestShowPanelCommandReopensPanel(t *testing.T) {
+	h := &recordingHost{}
+	e := NewEngine(h)
+	e.onCommandStarted(commandStartedEvent(ShowPanelCommandID))
+	waitFor(t, func() bool { return h.saw(wire.MethodDockableWindowsSet) })
+}

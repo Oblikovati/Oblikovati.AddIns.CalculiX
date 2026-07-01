@@ -22,12 +22,11 @@ func TestCommandArgsPlacesOnFEATab(t *testing.T) {
 }
 
 func TestEveryCommandHasARibbonSpot(t *testing.T) {
-	for _, id := range []string{
-		RunStudyCommandID, AddConstraintCommandID, ClearConstraintsCommandID,
-		ShowPanelCommandID, ShowTreeCommandID,
-	} {
-		if _, ok := ccxRibbonSpots[id]; !ok {
-			t.Errorf("command %q has no ribbon spot", id)
+	// Derived from the registration list, so a command appended to ccxCommands without a
+	// ribbon spot fails here rather than silently landing on an unnamed panel.
+	for _, c := range ccxCommands {
+		if _, ok := ccxRibbonSpots[c.id]; !ok {
+			t.Errorf("command %q has no ribbon spot", c.id)
 		}
 	}
 }
