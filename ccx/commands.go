@@ -15,6 +15,12 @@ const (
 	ClearConstraintsCommandID = "CCX.ClearConstraints"
 )
 
+// ShowPanelCommandID / ShowTreeCommandID re-open the study panel / Analysis tree from the ribbon.
+const (
+	ShowPanelCommandID = "CCX.ShowPanel"
+	ShowTreeCommandID  = "CCX.ShowTree"
+)
+
 // Setup performs the one-time host-facing initialization: register the study command, show
 // the study-parameters panel, and declare the Analysis browser tree. It MUST NOT run on the
 // host's session goroutine (host calls there block until the frame loop drains the dispatcher,
