@@ -294,13 +294,17 @@ func (e *Engine) applyMaterialOrLoadEdit(controlID, value string) {
 }
 
 // applyMaterialEdit handles the material-property controls, returning whether it matched.
-// The 4 core mechanical fields (young, poisson, yield, density) update the Analysis aggregate
-// via applyAggCoreMatEdit; hyperelastic and thermal/hot properties write to e.extras.
+// Mechanical fields (young, poisson, yield, density) and thermal material fields
+// (alpha, conductivity, specific_heat) update the Analysis aggregate via their helpers;
+// hyperelastic and temperature-dependent hot properties write to e.extras.
 func (e *Engine) applyMaterialEdit(controlID, value string) bool {
 	if e.applyHyperelasticEdit(controlID, value) {
 		return true
 	}
-	if e.applyAggCoreMatEdit(controlID, value) {
+	if e.applyAggMechanicalMatEdit(controlID, value) {
+		return true
+	}
+	if e.applyAggThermalMatEdit(controlID, value) {
 		return true
 	}
 	switch controlID {
@@ -309,13 +313,13 @@ func (e *Engine) applyMaterialEdit(controlID, value string) bool {
 	case "hot_temp":
 		e.extras.HotTempK = panelNum(value, e.extras.HotTempK)
 	default:
-		return e.applyThermalMaterialEdit(controlID, value)
+		return e.applyElecMatEdit(controlID, value)
 	}
 	return true
 }
 
-// applyAggCoreMatEdit routes the 4 core mechanical material fields to the Analysis aggregate.
-func (e *Engine) applyAggCoreMatEdit(controlID, value string) bool {
+// applyAggMechanicalMatEdit routes the 4 core mechanical material fields to the Analysis aggregate.
+func (e *Engine) applyAggMechanicalMatEdit(controlID, value string) bool {
 	mat, ok := e.analysis.DefaultMaterial()
 	if !ok {
 		return false
@@ -336,18 +340,31 @@ func (e *Engine) applyAggCoreMatEdit(controlID, value string) bool {
 	return true
 }
 
-// applyThermalMaterialEdit handles the thermal/electrical material-property controls, returning
-// whether it matched.
-func (e *Engine) applyThermalMaterialEdit(controlID, value string) bool {
+// applyAggThermalMatEdit routes the 3 thermal material fields to the Analysis aggregate.
+func (e *Engine) applyAggThermalMatEdit(controlID, value string) bool {
+	mat, ok := e.analysis.DefaultMaterial()
+	if !ok {
+		return false
+	}
 	switch controlID {
 	case "alpha":
-		e.extras.ThermalAlpha = panelNum(value, e.extras.ThermalAlpha)
+		mat.ThermalAlpha = panelNum(value, mat.ThermalAlpha)
 	case "conductivity":
-		e.extras.Conductivity = panelNum(value, e.extras.Conductivity)
+		mat.Conductivity = panelNum(value, mat.Conductivity)
+	case "specific_heat":
+		mat.SpecificHeat = panelNum(value, mat.SpecificHeat)
+	default:
+		return false
+	}
+	e.analysis.SetDefaultMaterial(mat)
+	return true
+}
+
+// applyElecMatEdit handles the electrical material-property control, returning whether it matched.
+func (e *Engine) applyElecMatEdit(controlID, value string) bool {
+	switch controlID {
 	case "elec_sigma":
 		e.extras.ElectricalSigma = panelNum(value, e.extras.ElectricalSigma)
-	case "specific_heat":
-		e.extras.SpecificHeat = panelNum(value, e.extras.SpecificHeat)
 	default:
 		return false
 	}

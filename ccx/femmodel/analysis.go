@@ -25,6 +25,9 @@ func NewDefaultAnalysis() *Analysis {
 		mesh:   newMeshObject("mesh", 0, true),
 	}
 	a.AddMaterial("Steel", 210, 0.3, 7.85, 0, true)
+	steel, _ := a.DefaultMaterial()
+	steel.ThermalAlpha, steel.Conductivity, steel.SpecificHeat = 1.2e-5, 50, 5e8
+	a.SetDefaultMaterial(steel)
 	a.AddResult("von Mises stress", 0)
 	return a
 }
