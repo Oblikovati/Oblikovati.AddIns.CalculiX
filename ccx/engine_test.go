@@ -62,14 +62,15 @@ func TestApplyPanelEditUpdatesSettings(t *testing.T) {
 	e.applyPanelEdit("mesh_size", "5 mm")
 	e.applyPanelEdit("element_order", "linear (C3D4)")
 	e.applyPanelEdit("analysis", string(AnalysisFrequency))
-	if e.settings.MeshSizeMM != 5 {
-		t.Errorf("MeshSizeMM = %v, want 5", e.settings.MeshSizeMM)
+	s, _ := e.study()
+	if s.MeshSizeMM != 5 {
+		t.Errorf("MeshSizeMM = %v, want 5", s.MeshSizeMM)
 	}
-	if e.settings.ElementOrder != LinearTet {
-		t.Errorf("ElementOrder = %v, want LinearTet", e.settings.ElementOrder)
+	if s.ElementOrder != LinearTet {
+		t.Errorf("ElementOrder = %v, want LinearTet", s.ElementOrder)
 	}
-	if e.settings.Analysis != AnalysisFrequency {
-		t.Errorf("Analysis = %v, want frequency", e.settings.Analysis)
+	if s.Analysis != AnalysisFrequency {
+		t.Errorf("Analysis = %v, want frequency", s.Analysis)
 	}
 }
 

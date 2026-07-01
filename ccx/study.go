@@ -85,9 +85,7 @@ func (e *Engine) RunStudyOnHost() (*StudyResult, error) {
 	if err != nil {
 		return nil, err
 	}
-	e.mu.Lock()
-	settings := e.settings
-	e.mu.Unlock()
+	settings, _ := e.study()
 
 	faces, err := e.selectedFaces(settings)
 	if err != nil {

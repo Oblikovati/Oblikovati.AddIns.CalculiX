@@ -15,6 +15,7 @@ import (
 
 	"oblikovati.org/api/client"
 	"oblikovati.org/api/wire"
+	"oblikovati.org/calculix/ccx/femmodel"
 )
 
 // HostCaller is the transport the engine talks to the host through — exactly the
@@ -29,14 +30,24 @@ type Engine struct {
 	host HostCaller
 	api  *client.Client
 
-	mu       sync.Mutex    // guards settings + running
-	settings StudySettings // editable study parameters (panel-driven)
-	running  bool          // a study is in flight (coalesces overlapping command triggers)
+	mu       sync.Mutex         // guards analysis, extras and running
+	analysis *femmodel.Analysis // tree-owned source of truth (Solver/Mesh/Material/Result)
+	extras   StudySettings      // not-yet-modeled flat params; overlaid by projectAnalysis
+	running  bool               // a study is in flight (coalesces overlapping command triggers)
 }
 
-// NewEngine binds the engine to the host transport with the default study settings.
+// NewEngine binds the engine to the host transport with the default study parameters.
 func NewEngine(host HostCaller) *Engine {
-	return &Engine{host: host, api: client.New(host), settings: defaultSettings()}
+	return &Engine{host: host, api: client.New(host),
+		analysis: femmodel.NewDefaultAnalysis(), extras: defaultSettings()}
+}
+
+// study snapshots the study model under lock and projects it to the flat StudySettings the
+// pipeline consumes — the ONE seam the mesh/deck/solve/render path reads.
+func (e *Engine) study() (StudySettings, []ConstraintSpec) {
+	e.mu.Lock()
+	defer e.mu.Unlock()
+	return projectAnalysis(e.analysis, e.extras)
 }
 
 // Notify receives host event bytes. A command.started carrying RunStudyCommandID runs the

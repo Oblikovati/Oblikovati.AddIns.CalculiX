@@ -60,10 +60,10 @@ func (e *Engine) addConstraintFromSelection() {
 		return
 	}
 	e.mu.Lock()
-	name := fmt.Sprintf("C%d", len(e.settings.Constraints))
-	spec := newConstraintSpec(e.settings.BuilderKind, name, faces, e.settings)
-	e.settings.Constraints = append(e.settings.Constraints, spec)
-	count := len(e.settings.Constraints)
+	name := fmt.Sprintf("C%d", len(e.extras.Constraints))
+	spec := newConstraintSpec(e.extras.BuilderKind, name, faces, e.extras)
+	e.extras.Constraints = append(e.extras.Constraints, spec)
+	count := len(e.extras.Constraints)
 	e.mu.Unlock()
 	_, _ = e.ShowPanel()
 	e.reportStatus(fmt.Sprintf("CalculiX: added a %s constraint on %d face(s); %d total.",
@@ -74,7 +74,7 @@ func (e *Engine) addConstraintFromSelection() {
 // synthesized default) and refreshes the panel.
 func (e *Engine) clearConstraints() {
 	e.mu.Lock()
-	e.settings.Constraints = nil
+	e.extras.Constraints = nil
 	e.mu.Unlock()
 	_, _ = e.ShowPanel()
 	e.reportStatus("CalculiX: cleared all added constraints.")

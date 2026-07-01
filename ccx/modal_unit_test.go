@@ -82,7 +82,7 @@ func TestApplyMaterialAndLoadEdits(t *testing.T) {
 	e.applyPanelEdit("load_type", string(LoadPressure))
 	e.applyPanelEdit("pressure", "2.5")
 	e.applyPanelEdit("gravity", "2")
-	s := e.settings
+	s, _ := e.study()
 	if s.Eigenmodes != 10 || s.YoungGPa != 70 || s.Poisson != 0.33 || s.DensityGCm3 != 2.7 {
 		t.Errorf("material/eigen edits not applied: %+v", s)
 	}
