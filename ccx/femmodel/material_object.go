@@ -6,12 +6,12 @@ package femmodel
 // body that has no more-specific assignment. Carries mechanical, thermal, electromagnetic,
 // hyperelastic (Neo-Hookean), and temperature-dependent stiffness properties.
 type MaterialObject struct {
-	id           string
-	name         string
-	YoungGPa     float64
-	Poisson      float64
-	DensityGCm3  float64
-	YieldMPa     float64
+	id              string
+	name            string
+	YoungGPa        float64
+	Poisson         float64
+	DensityGCm3     float64
+	YieldMPa        float64
 	ThermalAlpha    float64 // thermal expansion coefficient (1/K)
 	Conductivity    float64 // thermal conductivity (consistent units)
 	SpecificHeat    float64 // specific heat capacity (consistent units; transient)

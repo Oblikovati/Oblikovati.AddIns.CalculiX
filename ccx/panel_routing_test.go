@@ -33,6 +33,26 @@ func TestPanelEditRoutesRemainderToExtras(t *testing.T) {
 	}
 }
 
+func TestEMHyperTempMaterialEditsRouteToAggregate(t *testing.T) {
+	e := NewEngine(nil)
+	e.applyPanelEdit("elec_sigma", "2")
+	e.applyPanelEdit("material_model", "neo-hookean (rubber)")
+	e.applyPanelEdit("neo_c10", "3")
+	e.applyPanelEdit("neo_d1", "0.2")
+	e.applyPanelEdit("young_hot", "150")
+	e.applyPanelEdit("hot_temp", "400")
+	mat, _ := e.analysis.DefaultMaterial()
+	if mat.ElectricalSigma != 2 || mat.MaterialModel != "neo-hookean (rubber)" ||
+		mat.NeoHookeC10 != 3 || mat.NeoHookeD1 != 0.2 || mat.YoungHotGPa != 150 || mat.HotTempK != 400 {
+		t.Fatalf("edits did not land in the aggregate material: %+v", mat)
+	}
+	s, _ := e.study()
+	if s.ElectricalSigma != 2 || string(s.MaterialModel) != "neo-hookean (rubber)" ||
+		s.NeoHookeC10 != 3 || s.YoungHotGPa != 150 {
+		t.Fatalf("study() did not reflect the edits: %+v", s)
+	}
+}
+
 func TestThermalMaterialEditRoutesToAggregate(t *testing.T) {
 	e := NewEngine(nil)
 	e.applyPanelEdit("alpha", "2.5e-5")

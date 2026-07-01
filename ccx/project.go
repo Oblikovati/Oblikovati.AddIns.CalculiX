@@ -22,20 +22,36 @@ func projectAnalysis(a *femmodel.Analysis, extras StudySettings) (StudySettings,
 	s.MeshSizeMM = m.MaxSizeMM
 	s.ElementOrder = elementOrder(m.Quadratic)
 
-	if mat, ok := a.DefaultMaterial(); ok {
-		s.YoungGPa = mat.YoungGPa
-		s.Poisson = mat.Poisson
-		s.DensityGCm3 = mat.DensityGCm3
-		s.YieldMPa = mat.YieldMPa
-		s.ThermalAlpha = mat.ThermalAlpha
-		s.Conductivity = mat.Conductivity
-		s.SpecificHeat = mat.SpecificHeat
-	}
+	s = overlayMaterial(a, s)
+
 	if r, ok := a.PrimaryResult(); ok {
 		s.ResultField = ResultFieldKind(r.Field)
 		s.DeformScale = r.DeformScale
 	}
 	return s, s.Constraints
+}
+
+// overlayMaterial copies all default-material fields from the Analysis aggregate onto s.
+// Covers mechanical, thermal, electrical, hyperelastic, and temperature-dependent properties.
+func overlayMaterial(a *femmodel.Analysis, s StudySettings) StudySettings {
+	mat, ok := a.DefaultMaterial()
+	if !ok {
+		return s
+	}
+	s.YoungGPa = mat.YoungGPa
+	s.Poisson = mat.Poisson
+	s.DensityGCm3 = mat.DensityGCm3
+	s.YieldMPa = mat.YieldMPa
+	s.ThermalAlpha = mat.ThermalAlpha
+	s.Conductivity = mat.Conductivity
+	s.SpecificHeat = mat.SpecificHeat
+	s.ElectricalSigma = mat.ElectricalSigma
+	s.MaterialModel = MaterialModel(mat.MaterialModel)
+	s.NeoHookeC10 = mat.NeoHookeC10
+	s.NeoHookeD1 = mat.NeoHookeD1
+	s.YoungHotGPa = mat.YoungHotGPa
+	s.HotTempK = mat.HotTempK
+	return s
 }
 
 // elementOrder maps the mesh object's Quadratic flag to the deck element order.
