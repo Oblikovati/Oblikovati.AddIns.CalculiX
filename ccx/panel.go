@@ -294,28 +294,17 @@ func (e *Engine) applyMaterialOrLoadEdit(controlID, value string) {
 }
 
 // applyMaterialEdit handles the material-property controls, returning whether it matched.
-// Mechanical fields (young, poisson, yield, density) and thermal material fields
-// (alpha, conductivity, specific_heat) update the Analysis aggregate via their helpers;
-// hyperelastic and temperature-dependent hot properties write to e.extras.
+// All material controls update the Analysis aggregate: mechanical fields via
+// applyAggMechanicalMatEdit, thermal via applyAggThermalMatEdit, and electrical /
+// hyperelastic / temperature-dependent via applyAggEMHyperMatEdit.
 func (e *Engine) applyMaterialEdit(controlID, value string) bool {
-	if e.applyHyperelasticEdit(controlID, value) {
-		return true
-	}
 	if e.applyAggMechanicalMatEdit(controlID, value) {
 		return true
 	}
 	if e.applyAggThermalMatEdit(controlID, value) {
 		return true
 	}
-	switch controlID {
-	case "young_hot":
-		e.extras.YoungHotGPa = panelNum(value, e.extras.YoungHotGPa)
-	case "hot_temp":
-		e.extras.HotTempK = panelNum(value, e.extras.HotTempK)
-	default:
-		return e.applyElecMatEdit(controlID, value)
-	}
-	return true
+	return e.applyAggEMHyperMatEdit(controlID, value)
 }
 
 // applyAggMechanicalMatEdit routes the 4 core mechanical material fields to the Analysis aggregate.
@@ -360,30 +349,30 @@ func (e *Engine) applyAggThermalMatEdit(controlID, value string) bool {
 	return true
 }
 
-// applyElecMatEdit handles the electrical material-property control, returning whether it matched.
-func (e *Engine) applyElecMatEdit(controlID, value string) bool {
+// applyAggEMHyperMatEdit routes the electrical, hyperelastic, and temperature-dependent-elasticity
+// material controls to the Analysis aggregate. Returns whether it matched.
+func (e *Engine) applyAggEMHyperMatEdit(controlID, value string) bool {
+	mat, ok := e.analysis.DefaultMaterial()
+	if !ok {
+		return false
+	}
 	switch controlID {
 	case "elec_sigma":
-		e.extras.ElectricalSigma = panelNum(value, e.extras.ElectricalSigma)
-	default:
-		return false
-	}
-	return true
-}
-
-// applyHyperelasticEdit handles the material-model selector and the Neo-Hookean parameter
-// controls, returning whether it matched.
-func (e *Engine) applyHyperelasticEdit(controlID, value string) bool {
-	switch controlID {
+		mat.ElectricalSigma = panelNum(value, mat.ElectricalSigma)
 	case "material_model":
-		e.extras.MaterialModel = MaterialModel(strings.TrimSpace(value))
+		mat.MaterialModel = strings.TrimSpace(value)
 	case "neo_c10":
-		e.extras.NeoHookeC10 = panelNum(value, e.extras.NeoHookeC10)
+		mat.NeoHookeC10 = panelNum(value, mat.NeoHookeC10)
 	case "neo_d1":
-		e.extras.NeoHookeD1 = panelNum(value, e.extras.NeoHookeD1)
+		mat.NeoHookeD1 = panelNum(value, mat.NeoHookeD1)
+	case "young_hot":
+		mat.YoungHotGPa = panelNum(value, mat.YoungHotGPa)
+	case "hot_temp":
+		mat.HotTempK = panelNum(value, mat.HotTempK)
 	default:
 		return false
 	}
+	e.analysis.SetDefaultMaterial(mat)
 	return true
 }
 
