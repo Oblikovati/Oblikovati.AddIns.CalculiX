@@ -27,6 +27,9 @@ func projectAnalysis(a *femmodel.Analysis, extras StudySettings) (StudySettings,
 		s.Poisson = mat.Poisson
 		s.DensityGCm3 = mat.DensityGCm3
 		s.YieldMPa = mat.YieldMPa
+		s.ThermalAlpha = mat.ThermalAlpha
+		s.Conductivity = mat.Conductivity
+		s.SpecificHeat = mat.SpecificHeat
 	}
 	if r, ok := a.PrimaryResult(); ok {
 		s.ResultField = ResultFieldKind(r.Field)

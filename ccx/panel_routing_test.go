@@ -32,3 +32,19 @@ func TestPanelEditRoutesRemainderToExtras(t *testing.T) {
 		t.Fatalf("study() did not reflect aggregate+extras: young=%v gravity=%v", got.YoungGPa, got.GravityG)
 	}
 }
+
+func TestThermalMaterialEditRoutesToAggregate(t *testing.T) {
+	e := NewEngine(nil)
+	e.applyPanelEdit("alpha", "2.5e-5")
+	e.applyPanelEdit("conductivity", "77")
+	e.applyPanelEdit("specific_heat", "4.2e8")
+	mat, _ := e.analysis.DefaultMaterial()
+	if mat.ThermalAlpha != 2.5e-5 || mat.Conductivity != 77 || mat.SpecificHeat != 4.2e8 {
+		t.Fatalf("thermal edits did not land in the aggregate material: %+v", mat)
+	}
+	// And the projection reflects them.
+	s, _ := e.study()
+	if s.ThermalAlpha != 2.5e-5 || s.Conductivity != 77 || s.SpecificHeat != 4.2e8 {
+		t.Fatalf("study() did not reflect thermal edits: %+v", s)
+	}
+}
