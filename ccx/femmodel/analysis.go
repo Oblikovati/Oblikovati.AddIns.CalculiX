@@ -47,6 +47,33 @@ func (a *Analysis) SetSolver(s SolverObject) { s.id = a.solver.id; a.solver = s 
 // SetMesh replaces the mesh object (preserving its id).
 func (a *Analysis) SetMesh(m MeshObject) { m.id = a.mesh.id; a.mesh = m }
 
+// SetDefaultMaterial replaces the ScopeAll fallback material's mechanical fields, preserving its
+// id and ScopeAll flag (upholding the ≥1-ScopeAll-material invariant). If no ScopeAll material
+// exists yet, it updates the first material.
+func (a *Analysis) SetDefaultMaterial(m MaterialObject) {
+	for i := range a.materials {
+		if a.materials[i].ScopeAll {
+			m.id, m.name, m.ScopeAll = a.materials[i].id, a.materials[i].name, true
+			a.materials[i] = m
+			return
+		}
+	}
+	if len(a.materials) > 0 {
+		m.id, m.name = a.materials[0].id, a.materials[0].name
+		m.ScopeAll = a.materials[0].ScopeAll
+		a.materials[0] = m
+	}
+}
+
+// SetPrimaryResult replaces the first result object's fields, preserving its id (keeps ≥1 Result).
+func (a *Analysis) SetPrimaryResult(r ResultObject) {
+	if len(a.results) == 0 {
+		return
+	}
+	r.id = a.results[0].id
+	a.results[0] = r
+}
+
 // AddMaterial appends a material with a fresh unique id and returns it.
 func (a *Analysis) AddMaterial(name string, young, poisson, density, yield float64, scopeAll bool) MaterialObject {
 	a.nextMat++

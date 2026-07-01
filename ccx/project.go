@@ -4,14 +4,14 @@ package ccx
 
 import "oblikovati.org/calculix/ccx/femmodel"
 
-// projectAnalysis flattens the femmodel.Analysis tree onto the engine's StudySettings + explicit
-// constraint list — the seam that keeps the mature mesh/deck/solve/render pipeline unchanged while
-// the edit model becomes a tree. It starts from the v1 defaults and overrides only the fields the
-// Phase-1 tree owns (Solver/Mesh/Material/Result); fields not yet migrated keep their defaults, so
-// projecting the default Analysis reproduces defaultSettings() exactly. Constraints are carried on
-// StudySettings and returned alongside for callers that want them directly.
-func projectAnalysis(a *femmodel.Analysis) (StudySettings, []ConstraintSpec) {
-	s := defaultSettings()
+// projectAnalysis flattens the Analysis tree ONTO the flat extras remainder: it starts from extras
+// (which supplies every not-yet-modeled field) and overlays the fields the tree owns — "analysis
+// wins". This single seam keeps the mesh/deck/solve/render pipeline reading a plain StudySettings
+// while the edit model is a tree. projectAnalysis(NewDefaultAnalysis(), defaultSettings()) reproduces
+// defaultSettings() exactly (the equivalence guard). Constraints are carried on StudySettings and
+// returned alongside for callers that want them directly.
+func projectAnalysis(a *femmodel.Analysis, extras StudySettings) (StudySettings, []ConstraintSpec) {
+	s := extras
 
 	sv := a.Solver()
 	s.Analysis = AnalysisType(sv.AnalysisType)

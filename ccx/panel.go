@@ -17,9 +17,7 @@ const PanelID = "com.oblikovati.calculix.panel"
 // ShowPanel creates (or replaces) the CalculiX study-parameters dockable window: the editable
 // study settings plus a Run button. Edits arrive as panel.valueChanged events (applyPanelEdit).
 func (e *Engine) ShowPanel() (wire.OKResult, error) {
-	e.mu.Lock()
-	s := e.settings
-	e.mu.Unlock()
+	s, _ := e.study()
 	return e.api.DockableWindows().Set(wire.DockableWindowSpec{
 		ID:       PanelID,
 		Title:    "CalculiX FEA",
@@ -216,33 +214,77 @@ func labelID(title string) string {
 }
 
 // applyPanelEdit writes one edited study parameter back into the engine, keyed by control id.
+// The 11 tree-owned controls (solver/mesh/material/result) reach the femmodel aggregate via their
+// per-object helpers; everything else writes to e.extras.
 func (e *Engine) applyPanelEdit(controlID, value string) {
 	e.mu.Lock()
 	defer e.mu.Unlock()
+	if e.applySolverEdit(controlID, value) {
+		return
+	}
+	if e.applyMeshAggEdit(controlID, value) {
+		return
+	}
+	if e.applyResultAggEdit(controlID, value) {
+		return
+	}
+	e.applyMaterialOrLoadEdit(controlID, value)
+}
+
+// applySolverEdit routes analysis/eigenmodes/transient_time to the Analysis.Solver aggregate.
+func (e *Engine) applySolverEdit(controlID, value string) bool {
+	sv := e.analysis.Solver()
 	switch controlID {
 	case "analysis":
-		e.settings.Analysis = AnalysisType(strings.TrimSpace(value))
-	case "mesh_size":
-		e.settings.MeshSizeMM = panelNum(value, e.settings.MeshSizeMM)
-	case "element_order":
-		e.settings.ElementOrder = parseElementOrder(value, e.settings.ElementOrder)
-	case "deform_scale":
-		e.settings.DeformScale = panelNum(value, e.settings.DeformScale)
+		sv.AnalysisType = strings.TrimSpace(value)
 	case "eigenmodes":
-		e.settings.Eigenmodes = int(panelNum(value, float64(e.settings.Eigenmodes)))
+		sv.Eigenmodes = int(panelNum(value, float64(sv.Eigenmodes)))
 	case "transient_time":
-		e.settings.TransientTimeS = panelNum(value, e.settings.TransientTimeS)
-	case "result_field":
-		e.settings.ResultField = ResultFieldKind(strings.TrimSpace(value))
+		sv.TransientTimeS = panelNum(value, sv.TransientTimeS)
 	default:
-		e.applyMaterialOrLoadEdit(controlID, value)
+		return false
 	}
+	e.analysis.SetSolver(sv)
+	return true
+}
+
+// applyMeshAggEdit routes mesh_size/element_order to the Analysis.Mesh aggregate.
+func (e *Engine) applyMeshAggEdit(controlID, value string) bool {
+	m := e.analysis.Mesh()
+	switch controlID {
+	case "mesh_size":
+		m.MaxSizeMM = panelNum(value, m.MaxSizeMM)
+	case "element_order":
+		m.Quadratic = parseElementOrder(value, elementOrder(m.Quadratic)) == QuadraticTet
+	default:
+		return false
+	}
+	e.analysis.SetMesh(m)
+	return true
+}
+
+// applyResultAggEdit routes result_field/deform_scale to the Analysis.PrimaryResult aggregate.
+func (e *Engine) applyResultAggEdit(controlID, value string) bool {
+	r, ok := e.analysis.PrimaryResult()
+	if !ok {
+		return false
+	}
+	switch controlID {
+	case "result_field":
+		r.Field = strings.TrimSpace(value)
+	case "deform_scale":
+		r.DeformScale = panelNum(value, r.DeformScale)
+	default:
+		return false
+	}
+	e.analysis.SetPrimaryResult(r)
+	return true
 }
 
 // applyMaterialOrLoadEdit handles the material, load, and constraint-builder control edits.
 func (e *Engine) applyMaterialOrLoadEdit(controlID, value string) {
 	if controlID == "constraint_type" {
-		e.settings.BuilderKind = ConstraintKind(strings.TrimSpace(value))
+		e.extras.BuilderKind = ConstraintKind(strings.TrimSpace(value))
 		return
 	}
 	if e.applyMaterialEdit(controlID, value) {
@@ -252,26 +294,45 @@ func (e *Engine) applyMaterialOrLoadEdit(controlID, value string) {
 }
 
 // applyMaterialEdit handles the material-property controls, returning whether it matched.
+// The 4 core mechanical fields (young, poisson, yield, density) update the Analysis aggregate
+// via applyAggCoreMatEdit; hyperelastic and thermal/hot properties write to e.extras.
 func (e *Engine) applyMaterialEdit(controlID, value string) bool {
 	if e.applyHyperelasticEdit(controlID, value) {
 		return true
 	}
+	if e.applyAggCoreMatEdit(controlID, value) {
+		return true
+	}
 	switch controlID {
-	case "young":
-		e.settings.YoungGPa = panelNum(value, e.settings.YoungGPa)
 	case "young_hot":
-		e.settings.YoungHotGPa = panelNum(value, e.settings.YoungHotGPa)
+		e.extras.YoungHotGPa = panelNum(value, e.extras.YoungHotGPa)
 	case "hot_temp":
-		e.settings.HotTempK = panelNum(value, e.settings.HotTempK)
-	case "poisson":
-		e.settings.Poisson = panelNum(value, e.settings.Poisson)
-	case "yield":
-		e.settings.YieldMPa = panelNum(value, e.settings.YieldMPa)
-	case "density":
-		e.settings.DensityGCm3 = panelNum(value, e.settings.DensityGCm3)
+		e.extras.HotTempK = panelNum(value, e.extras.HotTempK)
 	default:
 		return e.applyThermalMaterialEdit(controlID, value)
 	}
+	return true
+}
+
+// applyAggCoreMatEdit routes the 4 core mechanical material fields to the Analysis aggregate.
+func (e *Engine) applyAggCoreMatEdit(controlID, value string) bool {
+	mat, ok := e.analysis.DefaultMaterial()
+	if !ok {
+		return false
+	}
+	switch controlID {
+	case "young":
+		mat.YoungGPa = panelNum(value, mat.YoungGPa)
+	case "poisson":
+		mat.Poisson = panelNum(value, mat.Poisson)
+	case "yield":
+		mat.YieldMPa = panelNum(value, mat.YieldMPa)
+	case "density":
+		mat.DensityGCm3 = panelNum(value, mat.DensityGCm3)
+	default:
+		return false
+	}
+	e.analysis.SetDefaultMaterial(mat)
 	return true
 }
 
@@ -280,13 +341,13 @@ func (e *Engine) applyMaterialEdit(controlID, value string) bool {
 func (e *Engine) applyThermalMaterialEdit(controlID, value string) bool {
 	switch controlID {
 	case "alpha":
-		e.settings.ThermalAlpha = panelNum(value, e.settings.ThermalAlpha)
+		e.extras.ThermalAlpha = panelNum(value, e.extras.ThermalAlpha)
 	case "conductivity":
-		e.settings.Conductivity = panelNum(value, e.settings.Conductivity)
+		e.extras.Conductivity = panelNum(value, e.extras.Conductivity)
 	case "elec_sigma":
-		e.settings.ElectricalSigma = panelNum(value, e.settings.ElectricalSigma)
+		e.extras.ElectricalSigma = panelNum(value, e.extras.ElectricalSigma)
 	case "specific_heat":
-		e.settings.SpecificHeat = panelNum(value, e.settings.SpecificHeat)
+		e.extras.SpecificHeat = panelNum(value, e.extras.SpecificHeat)
 	default:
 		return false
 	}
@@ -298,11 +359,11 @@ func (e *Engine) applyThermalMaterialEdit(controlID, value string) bool {
 func (e *Engine) applyHyperelasticEdit(controlID, value string) bool {
 	switch controlID {
 	case "material_model":
-		e.settings.MaterialModel = MaterialModel(strings.TrimSpace(value))
+		e.extras.MaterialModel = MaterialModel(strings.TrimSpace(value))
 	case "neo_c10":
-		e.settings.NeoHookeC10 = panelNum(value, e.settings.NeoHookeC10)
+		e.extras.NeoHookeC10 = panelNum(value, e.extras.NeoHookeC10)
 	case "neo_d1":
-		e.settings.NeoHookeD1 = panelNum(value, e.settings.NeoHookeD1)
+		e.extras.NeoHookeD1 = panelNum(value, e.extras.NeoHookeD1)
 	default:
 		return false
 	}
@@ -317,17 +378,17 @@ func (e *Engine) applyLoadEdit(controlID, value string) {
 	}
 	switch controlID {
 	case "load_type":
-		e.settings.LoadType = LoadType(strings.TrimSpace(value))
+		e.extras.LoadType = LoadType(strings.TrimSpace(value))
 	case "load":
-		e.settings.LoadN = panelNum(value, e.settings.LoadN)
+		e.extras.LoadN = panelNum(value, e.extras.LoadN)
 	case "pressure":
-		e.settings.PressureMPa = panelNum(value, e.settings.PressureMPa)
+		e.extras.PressureMPa = panelNum(value, e.extras.PressureMPa)
 	case "gravity":
-		e.settings.GravityG = panelNum(value, e.settings.GravityG)
+		e.extras.GravityG = panelNum(value, e.extras.GravityG)
 	case "rotation":
-		e.settings.RotationRadS = panelNum(value, e.settings.RotationRadS)
+		e.extras.RotationRadS = panelNum(value, e.extras.RotationRadS)
 	case "displacement":
-		e.settings.DisplacementMM = panelNum(value, e.settings.DisplacementMM)
+		e.extras.DisplacementMM = panelNum(value, e.extras.DisplacementMM)
 	default:
 		e.applyFieldBCEdit(controlID, value)
 	}
@@ -338,13 +399,13 @@ func (e *Engine) applyLoadEdit(controlID, value string) {
 func (e *Engine) applySupportEdit(controlID, value string) bool {
 	switch controlID {
 	case "support_type":
-		e.settings.SupportType = SupportType(strings.TrimSpace(value))
+		e.extras.SupportType = SupportType(strings.TrimSpace(value))
 	case "spring_stiffness":
-		e.settings.SpringStiffMM = panelNum(value, e.settings.SpringStiffMM)
+		e.extras.SpringStiffMM = panelNum(value, e.extras.SpringStiffMM)
 	case "hydro_gradient":
-		e.settings.HydroGradientMPaMM = panelNum(value, e.settings.HydroGradientMPaMM)
+		e.extras.HydroGradientMPaMM = panelNum(value, e.extras.HydroGradientMPaMM)
 	case "hydro_surface":
-		e.settings.HydroSurfaceZ = panelNum(value, e.settings.HydroSurfaceZ)
+		e.extras.HydroSurfaceZ = panelNum(value, e.extras.HydroSurfaceZ)
 	default:
 		return false
 	}
@@ -357,13 +418,13 @@ func (e *Engine) applySupportEdit(controlID, value string) bool {
 func (e *Engine) applyFieldBCEdit(controlID, value string) {
 	switch controlID {
 	case "delta_t":
-		e.settings.DeltaK = panelNum(value, e.settings.DeltaK)
+		e.extras.DeltaK = panelNum(value, e.extras.DeltaK)
 	case "cold_temp":
-		e.settings.ColdTempK = panelNum(value, e.settings.ColdTempK)
+		e.extras.ColdTempK = panelNum(value, e.extras.ColdTempK)
 	case "heat_flux":
-		e.settings.HeatFluxQ = panelNum(value, e.settings.HeatFluxQ)
+		e.extras.HeatFluxQ = panelNum(value, e.extras.HeatFluxQ)
 	case "heat_drive":
-		e.settings.HeatDriveMode = HeatDrive(strings.TrimSpace(value))
+		e.extras.HeatDriveMode = HeatDrive(strings.TrimSpace(value))
 	default:
 		e.applyHeatModeEdit(controlID, value)
 	}
@@ -374,15 +435,15 @@ func (e *Engine) applyFieldBCEdit(controlID, value string) {
 func (e *Engine) applyHeatModeEdit(controlID, value string) {
 	switch controlID {
 	case "film_coeff":
-		e.settings.FilmCoeff = panelNum(value, e.settings.FilmCoeff)
+		e.extras.FilmCoeff = panelNum(value, e.extras.FilmCoeff)
 	case "sink_temp":
-		e.settings.SinkTempK = panelNum(value, e.settings.SinkTempK)
+		e.extras.SinkTempK = panelNum(value, e.extras.SinkTempK)
 	case "body_heat":
-		e.settings.BodyHeatRate = panelNum(value, e.settings.BodyHeatRate)
+		e.extras.BodyHeatRate = panelNum(value, e.extras.BodyHeatRate)
 	case "emissivity":
-		e.settings.Emissivity = panelNum(value, e.settings.Emissivity)
+		e.extras.Emissivity = panelNum(value, e.extras.Emissivity)
 	case "rad_ambient":
-		e.settings.RadAmbientK = panelNum(value, e.settings.RadAmbientK)
+		e.extras.RadAmbientK = panelNum(value, e.extras.RadAmbientK)
 	default:
 		e.applyEMEdit(controlID, value)
 	}
@@ -392,17 +453,17 @@ func (e *Engine) applyHeatModeEdit(controlID, value string) {
 func (e *Engine) applyEMEdit(controlID, value string) {
 	switch controlID {
 	case "voltage":
-		e.settings.VoltageV = panelNum(value, e.settings.VoltageV)
+		e.extras.VoltageV = panelNum(value, e.extras.VoltageV)
 	case "em_drive":
-		e.settings.EMDriveMode = EMDrive(strings.TrimSpace(value))
+		e.extras.EMDriveMode = EMDrive(strings.TrimSpace(value))
 	case "current_density":
-		e.settings.CurrentDensity = panelNum(value, e.settings.CurrentDensity)
+		e.extras.CurrentDensity = panelNum(value, e.extras.CurrentDensity)
 	case "contact_mode":
-		e.settings.ContactMode = strings.TrimSpace(value) == "contact"
+		e.extras.ContactMode = strings.TrimSpace(value) == "contact"
 	case "friction":
-		e.settings.FrictionMu = panelNum(value, e.settings.FrictionMu)
+		e.extras.FrictionMu = panelNum(value, e.extras.FrictionMu)
 	case "body_scope":
-		e.settings.BodyScope = BodyScope(strings.TrimSpace(value))
+		e.extras.BodyScope = BodyScope(strings.TrimSpace(value))
 	}
 }
 

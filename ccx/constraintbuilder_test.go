@@ -44,34 +44,34 @@ func TestNewConstraintSpecFactory(t *testing.T) {
 
 func TestAddConstraintFromSelection(t *testing.T) {
 	e := NewEngine(&builderHost{refs: []string{encodeFaceRef("kA"), encodeFaceRef("kB")}})
-	e.settings.BuilderKind = KindRoller
+	e.extras.BuilderKind = KindRoller
 
 	e.addConstraintFromSelection()
-	if len(e.settings.Constraints) != 1 {
-		t.Fatalf("expected 1 constraint after add, got %d", len(e.settings.Constraints))
+	if len(e.extras.Constraints) != 1 {
+		t.Fatalf("expected 1 constraint after add, got %d", len(e.extras.Constraints))
 	}
-	roller, ok := e.settings.Constraints[0].(RollerSpec)
+	roller, ok := e.extras.Constraints[0].(RollerSpec)
 	if !ok || len(roller.Faces) != 2 || roller.Name != "C0" {
-		t.Fatalf("added constraint should be a RollerSpec named C0 over 2 faces, got %+v", e.settings.Constraints[0])
+		t.Fatalf("added constraint should be a RollerSpec named C0 over 2 faces, got %+v", e.extras.Constraints[0])
 	}
 
 	// A second add appends with a fresh unique name.
-	e.settings.BuilderKind = KindPressure
+	e.extras.BuilderKind = KindPressure
 	e.addConstraintFromSelection()
-	if len(e.settings.Constraints) != 2 || e.settings.Constraints[1].Kind() != KindPressure {
-		t.Fatalf("second add should append a pressure constraint, got %+v", e.settings.Constraints)
+	if len(e.extras.Constraints) != 2 || e.extras.Constraints[1].Kind() != KindPressure {
+		t.Fatalf("second add should append a pressure constraint, got %+v", e.extras.Constraints)
 	}
 
 	e.clearConstraints()
-	if len(e.settings.Constraints) != 0 {
-		t.Fatalf("clear should empty the list, got %d", len(e.settings.Constraints))
+	if len(e.extras.Constraints) != 0 {
+		t.Fatalf("clear should empty the list, got %d", len(e.extras.Constraints))
 	}
 }
 
 func TestAddConstraintWithoutSelectionAddsNothing(t *testing.T) {
 	e := NewEngine(&builderHost{refs: nil})
 	e.addConstraintFromSelection()
-	if len(e.settings.Constraints) != 0 {
-		t.Fatalf("an empty selection must add no constraint, got %d", len(e.settings.Constraints))
+	if len(e.extras.Constraints) != 0 {
+		t.Fatalf("an empty selection must add no constraint, got %d", len(e.extras.Constraints))
 	}
 }
