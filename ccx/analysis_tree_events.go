@@ -2,7 +2,10 @@
 
 package ccx
 
-import "fmt"
+import (
+	"strconv"
+	"strings"
+)
 
 // handleAnalysisNode routes a browser gesture on the Analysis pane: double-click opens the
 // existing study panel; a context-menu item runs its action. (ADR-3: editing stays in the
@@ -49,14 +52,19 @@ func (e *Engine) runAndRefreshAnalysisTree(action func()) {
 // conIndexOf parses a leaf node ID of the form "con:N" and returns N. Category nodes
 // ("constraints") do not match and return (0, false). (mat:N / result:N parsers land with
 // per-object editing in a later slice — 2.2 double-clicks any node to the existing panel.)
-func conIndexOf(node string) (int, bool) { return indexOf(node, "con:%d") }
+func conIndexOf(node string) (int, bool) { return indexOf(node, "con") }
 
-// indexOf is the shared Sscanf-based parser; it returns (i, true) on an exact match of
-// format against node, and (0, false) on any error (wrong prefix, trailing chars, etc.).
-func indexOf(node, format string) (int, bool) {
-	var i int
-	if _, err := fmt.Sscanf(node, format, &i); err == nil {
-		return i, true
+// indexOf parses a leaf node ID of the form "<kind>:N" and returns N. The match is EXACT:
+// a wrong prefix, a missing index, or any trailing characters (e.g. "con:3extra") return
+// (0, false) — so a future per-object dispatch cannot be fooled by a malformed node id.
+func indexOf(node, kind string) (int, bool) {
+	rest, ok := strings.CutPrefix(node, kind+":")
+	if !ok {
+		return 0, false
 	}
-	return 0, false
+	i, err := strconv.Atoi(rest)
+	if err != nil {
+		return 0, false
+	}
+	return i, true
 }

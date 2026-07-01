@@ -15,6 +15,12 @@ func TestConIndexOf(t *testing.T) {
 	if _, ok := conIndexOf("constraints"); ok {
 		t.Fatal("category node must not parse as con:N")
 	}
+	// Exact match: trailing characters and a missing index must be rejected.
+	for _, bad := range []string{"con:3extra", "con:", "con:x", "mat:3"} {
+		if _, ok := conIndexOf(bad); ok {
+			t.Fatalf("conIndexOf(%q) must reject, got ok=true", bad)
+		}
+	}
 }
 
 // TestAnalysisMenuRunRoutesToStudy verifies that a menu "run" on the "analysis" node drives
