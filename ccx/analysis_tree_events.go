@@ -46,15 +46,10 @@ func (e *Engine) runAndRefreshAnalysisTree(action func()) {
 	}()
 }
 
-// matIndexOf parses a leaf node ID of the form "mat:N" and returns N.
-func matIndexOf(node string) (int, bool) { return indexOf(node, "mat:%d") }
-
 // conIndexOf parses a leaf node ID of the form "con:N" and returns N. Category nodes
-// ("constraints") do not match and return (0, false).
+// ("constraints") do not match and return (0, false). (mat:N / result:N parsers land with
+// per-object editing in a later slice — 2.2 double-clicks any node to the existing panel.)
 func conIndexOf(node string) (int, bool) { return indexOf(node, "con:%d") }
-
-// resultIndexOf parses a leaf node ID of the form "result:N" and returns N.
-func resultIndexOf(node string) (int, bool) { return indexOf(node, "result:%d") }
 
 // indexOf is the shared Sscanf-based parser; it returns (i, true) on an exact match of
 // format against node, and (0, false) on any error (wrong prefix, trailing chars, etc.).
