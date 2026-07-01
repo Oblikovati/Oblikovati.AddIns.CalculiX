@@ -42,7 +42,7 @@ func TestSetupRegistersCommandAndPanel(t *testing.T) {
 	if err := NewEngine(h).Setup(); err != nil {
 		t.Fatalf("Setup: %v", err)
 	}
-	for _, m := range []string{wire.MethodCommandsCreate, wire.MethodDockableWindowsSet} {
+	for _, m := range []string{wire.MethodCommandsCreate, wire.MethodDockableWindowsSet, wire.MethodBrowserSetPane} {
 		if !h.saw(m) {
 			t.Errorf("Setup never called %q (calls: %v)", m, h.calls)
 		}
@@ -87,6 +87,16 @@ func TestNotifyCommandStartedRunsStudy(t *testing.T) {
 	}
 }
 
+// TestNotifyRoutesBrowserNode verifies that a browser.node event on our pane routes to
+// handleAnalysisNode and the study path, which surfaces a status message.
+func TestNotifyRoutesBrowserNode(t *testing.T) {
+	h := &recordingHost{}
+	e := NewEngine(h)
+	ev := []byte(`{"type":"browser.node","pane":"com.oblikovati.calculix.tree","node":"analysis","gesture":"menu","menuItem":"run"}`)
+	e.Notify(ev)
+	waitFor(t, func() bool { return h.saw(wire.MethodStatusSetText) }) // study path reports status
+}
+
 // waitIdle blocks until the study goroutine launched by Notify has finished.
 func waitIdle(e *Engine) {
 	for {
@@ -98,4 +108,18 @@ func waitIdle(e *Engine) {
 		}
 		time.Sleep(time.Millisecond)
 	}
+}
+
+// waitFor polls cond until it returns true or 2 s elapse, at which point it calls
+// t.Fatal. Used when an async goroutine drives a host call we cannot guard on e.running.
+func waitFor(t *testing.T, cond func() bool) {
+	t.Helper()
+	deadline := time.Now().Add(2 * time.Second)
+	for time.Now().Before(deadline) {
+		if cond() {
+			return
+		}
+		time.Sleep(time.Millisecond)
+	}
+	t.Fatal("waitFor: condition not satisfied within 2 s")
 }

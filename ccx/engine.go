@@ -67,6 +67,8 @@ func (e *Engine) Notify(ev []byte) {
 		e.onCommandStarted(ev)
 	case wire.EventPanelValueChanged:
 		e.onPanelValueChanged(ev)
+	case wire.EventBrowserNode:
+		e.onBrowserNode(ev)
 	}
 }
 
@@ -136,6 +138,19 @@ func (e *Engine) runAndReport() {
 		return
 	}
 	e.reportStatus(res.Summary())
+}
+
+// onBrowserNode dispatches a gesture on our Analysis pane (ignoring events for other panes).
+func (e *Engine) onBrowserNode(ev []byte) {
+	var b struct {
+		Pane     string `json:"pane"`
+		Node     string `json:"node"`
+		Gesture  string `json:"gesture"`
+		MenuItem string `json:"menuItem"`
+	}
+	if json.Unmarshal(ev, &b) == nil && b.Pane == AnalysisBrowserPaneID {
+		e.handleAnalysisNode(b.Node, b.Gesture, b.MenuItem)
+	}
 }
 
 // reportStatus surfaces a study's outcome on the host status bar (best-effort: a status
