@@ -15,15 +15,18 @@ const (
 	ClearConstraintsCommandID = "CCX.ClearConstraints"
 )
 
-// Setup performs the one-time host-facing initialization: register the study command and show
-// the study-parameters panel. It MUST NOT run on the host's session goroutine (host calls
-// there block until the frame loop drains the dispatcher, deadlocking the head) — the cgo
-// shell runs it on its own goroutine.
+// Setup performs the one-time host-facing initialization: register the study command, show
+// the study-parameters panel, and declare the Analysis browser tree. It MUST NOT run on the
+// host's session goroutine (host calls there block until the frame loop drains the dispatcher,
+// deadlocking the head) — the cgo shell runs it on its own goroutine.
 func (e *Engine) Setup() error {
 	if err := e.RegisterCommands(); err != nil {
 		return err
 	}
-	_, err := e.ShowPanel()
+	if _, err := e.ShowPanel(); err != nil {
+		return err
+	}
+	_, err := e.ShowAnalysisTree()
 	return err
 }
 

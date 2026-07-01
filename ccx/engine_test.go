@@ -42,7 +42,7 @@ func TestSetupRegistersCommandAndPanel(t *testing.T) {
 	if err := NewEngine(h).Setup(); err != nil {
 		t.Fatalf("Setup: %v", err)
 	}
-	for _, m := range []string{wire.MethodCommandsCreate, wire.MethodDockableWindowsSet} {
+	for _, m := range []string{wire.MethodCommandsCreate, wire.MethodDockableWindowsSet, wire.MethodBrowserSetPane} {
 		if !h.saw(m) {
 			t.Errorf("Setup never called %q (calls: %v)", m, h.calls)
 		}
@@ -85,6 +85,16 @@ func TestNotifyCommandStartedRunsStudy(t *testing.T) {
 	if !h.saw(wire.MethodStatusSetText) {
 		t.Errorf("study run never reported status (calls: %v)", h.calls)
 	}
+}
+
+// TestNotifyRoutesBrowserNode verifies that a browser.node event on our pane routes to
+// handleAnalysisNode and the study path, which surfaces a status message.
+func TestNotifyRoutesBrowserNode(t *testing.T) {
+	h := &recordingHost{}
+	e := NewEngine(h)
+	ev := []byte(`{"type":"browser.node","pane":"com.oblikovati.calculix.tree","node":"analysis","gesture":"menu","menuItem":"run"}`)
+	e.Notify(ev)
+	waitFor(t, func() bool { return h.saw(wire.MethodStatusSetText) }) // study path reports status
 }
 
 // waitIdle blocks until the study goroutine launched by Notify has finished.
