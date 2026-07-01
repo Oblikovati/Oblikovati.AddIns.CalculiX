@@ -3,16 +3,19 @@
 package femmodel
 
 // MaterialObject is one material assignment. ScopeAll marks the fallback material applied to every
-// body that has no more-specific assignment. Phase 1 carries the core mechanical properties; thermal
-// and electromagnetic properties migrate here in a later phase.
+// body that has no more-specific assignment. Carries mechanical + thermal properties;
+// electromagnetic/hyperelastic migrate later.
 type MaterialObject struct {
-	id          string
-	name        string
-	YoungGPa    float64
-	Poisson     float64
-	DensityGCm3 float64
-	YieldMPa    float64
-	ScopeAll    bool
+	id           string
+	name         string
+	YoungGPa     float64
+	Poisson      float64
+	DensityGCm3  float64
+	YieldMPa     float64
+	ThermalAlpha float64 // thermal expansion coefficient (1/K)
+	Conductivity float64 // thermal conductivity (consistent units)
+	SpecificHeat float64 // specific heat capacity (consistent units; transient)
+	ScopeAll     bool
 }
 
 func newMaterialObject(id, name string, young, poisson, density, yield float64, scopeAll bool) MaterialObject {
