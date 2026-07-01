@@ -90,6 +90,10 @@ func (e *Engine) onCommandStarted(ev []byte) {
 		go e.addConstraintFromSelection()
 	case ClearConstraintsCommandID:
 		go e.clearConstraints()
+	case ShowPanelCommandID:
+		go func() { _, _ = e.ShowPanel() }()
+	case ShowTreeCommandID:
+		go func() { _, _ = e.ShowAnalysisTree() }()
 	}
 }
 
