@@ -99,3 +99,17 @@ func waitIdle(e *Engine) {
 		time.Sleep(time.Millisecond)
 	}
 }
+
+// waitFor polls cond until it returns true or 2 s elapse, at which point it calls
+// t.Fatal. Used when an async goroutine drives a host call we cannot guard on e.running.
+func waitFor(t *testing.T, cond func() bool) {
+	t.Helper()
+	deadline := time.Now().Add(2 * time.Second)
+	for time.Now().Before(deadline) {
+		if cond() {
+			return
+		}
+		time.Sleep(time.Millisecond)
+	}
+	t.Fatal("waitFor: condition not satisfied within 2 s")
+}
