@@ -7,7 +7,7 @@ import (
 	"testing"
 )
 
-// study() must project the default Engine (default analysis + default extras) to exactly
+// study() must project the default Engine (a default analysis aggregate) to exactly
 // defaultSettings() — the behavior-preserving guard for the ownership flip.
 func TestEngineStudyProjectsDefaults(t *testing.T) {
 	e := NewEngine(nil)
