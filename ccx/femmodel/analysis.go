@@ -16,6 +16,7 @@ type Analysis struct {
 	constraints    []ConstraintObject
 	load           LoadDefaults
 	support        SupportDefaults
+	thermal        ThermalDefaults
 	nextMat        int
 	nextResult     int
 	nextConstraint int
@@ -42,6 +43,8 @@ func NewDefaultAnalysis() *Analysis {
 	a.SetLoad(LoadDefaults{LoadType: "force", LoadN: 100, PressureMPa: 1, GravityG: 1,
 		RotationRadS: 100, DisplacementMM: 0.1, HydroGradientMPaMM: 1e-5, HydroSurfaceZ: 0})
 	a.SetSupport(SupportDefaults{SupportType: "fixed", SpringStiffMM: 1000})
+	a.SetThermal(ThermalDefaults{HeatDriveMode: "flux", DeltaK: 100, ColdTempK: 0, HeatFluxQ: 50,
+		FilmCoeff: 0.5, SinkTempK: 0, BodyHeatRate: 1, Emissivity: 0.8, RadAmbientK: 300})
 	return a
 }
 
@@ -74,6 +77,12 @@ func (a *Analysis) Support() SupportDefaults { return a.support }
 
 // SetSupport replaces the default-support parameters.
 func (a *Analysis) SetSupport(s SupportDefaults) { a.support = s }
+
+// Thermal returns the thermal boundary-condition parameters.
+func (a *Analysis) Thermal() ThermalDefaults { return a.thermal }
+
+// SetThermal replaces the thermal boundary-condition parameters.
+func (a *Analysis) SetThermal(t ThermalDefaults) { a.thermal = t }
 
 // SetDefaultMaterial replaces the ScopeAll fallback material's mechanical fields, preserving its
 // id and ScopeAll flag (upholding the ≥1-ScopeAll-material invariant). If no ScopeAll material

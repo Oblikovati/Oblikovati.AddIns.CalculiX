@@ -22,17 +22,17 @@ func TestPanelEditRoutesToAggregate(t *testing.T) {
 
 func TestPanelEditRoutesRemainderToExtras(t *testing.T) {
 	e := NewEngine(nil)
-	// delta_t is a thermal BC that has not yet been migrated to the aggregate: it still
-	// lives in extras. Use it (rather than gravity, which now routes to the aggregate) to
-	// confirm that the extras path is still reachable for not-yet-migrated controls.
-	e.applyPanelEdit("delta_t", "50")
-	if e.extras.DeltaK != 50 {
-		t.Fatalf("delta_t edit did not land in extras: %+v", e.extras.DeltaK)
+	// voltage is an EM BC that has not yet been migrated to the aggregate: it still
+	// lives in extras. Use it to confirm that the extras path is still reachable
+	// for not-yet-migrated controls (delta_t has moved to the thermal aggregate).
+	e.applyPanelEdit("voltage", "12")
+	if e.extras.VoltageV != 12 {
+		t.Fatalf("voltage edit did not land in extras: %+v", e.extras.VoltageV)
 	}
-	// The projection must reflect both homes: material from the aggregate, DeltaK from extras.
+	// The projection must reflect both homes: material from the aggregate, VoltageV from extras.
 	got, _ := e.study()
-	if got.YoungGPa == 0 || got.DeltaK != 50 {
-		t.Fatalf("study() did not reflect aggregate+extras: young=%v deltaK=%v", got.YoungGPa, got.DeltaK)
+	if got.YoungGPa == 0 || got.VoltageV != 12 {
+		t.Fatalf("study() did not reflect aggregate+extras: young=%v voltage=%v", got.YoungGPa, got.VoltageV)
 	}
 }
 
@@ -108,6 +108,28 @@ func TestSupportEditsRouteToAggregate(t *testing.T) {
 	s, _ := e.study()
 	if s.SupportType != SupportElastic || s.SpringStiffMM != 250 {
 		t.Fatalf("study() support = {%v %v}, want {elastic 250}", s.SupportType, s.SpringStiffMM)
+	}
+}
+
+func TestThermalEditsRouteToAggregate(t *testing.T) {
+	e := NewEngine(nil)
+	e.applyPanelEdit("delta_t", "60")
+	e.applyPanelEdit("cold_temp", "10")
+	e.applyPanelEdit("heat_flux", "70")
+	e.applyPanelEdit("heat_drive", "convection")
+	e.applyPanelEdit("film_coeff", "1.5")
+	e.applyPanelEdit("sink_temp", "20")
+	e.applyPanelEdit("body_heat", "9")
+	e.applyPanelEdit("emissivity", "0.3")
+	e.applyPanelEdit("rad_ambient", "310")
+	th := e.analysis.Thermal()
+	if th.HeatDriveMode != "convection" || th.DeltaK != 60 || th.ColdTempK != 10 || th.HeatFluxQ != 70 ||
+		th.FilmCoeff != 1.5 || th.SinkTempK != 20 || th.BodyHeatRate != 9 || th.Emissivity != 0.3 || th.RadAmbientK != 310 {
+		t.Fatalf("thermal edits did not land in the aggregate: %+v", th)
+	}
+	s, _ := e.study()
+	if s.HeatDriveMode != HeatDriveFilm || s.DeltaK != 60 || s.RadAmbientK != 310 {
+		t.Fatalf("study() did not reflect thermal edits: %+v", s)
 	}
 }
 
