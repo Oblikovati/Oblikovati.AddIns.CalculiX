@@ -11,7 +11,7 @@ import (
 
 func TestAnalysisNodesReflectAggregate(t *testing.T) {
 	a := femmodel.NewDefaultAnalysis()
-	nodes := analysisNodes(a, nil)
+	nodes := analysisNodes(a)
 	if len(nodes) != 1 || nodes[0].ID != "analysis" {
 		t.Fatalf("want single 'analysis' root, got %+v", nodes)
 	}
@@ -30,18 +30,14 @@ func TestAnalysisNodesReflectAggregate(t *testing.T) {
 
 func TestAnalysisNodesListConstraints(t *testing.T) {
 	a := femmodel.NewDefaultAnalysis()
-	cons := []ConstraintSpec{fixedSpecForTest(), fixedSpecForTest()}
-	nodes := analysisNodes(a, cons)
+	// Constraints are added to the aggregate; the tree reads a.Constraints().
+	a.AddConstraint("C0", femmodel.ConstraintObject{Kind: "fixed", Faces: []string{"face:k"}})
+	a.AddConstraint("C1", femmodel.ConstraintObject{Kind: "fixed", Faces: []string{"face:k"}})
+	nodes := analysisNodes(a)
 	cn := findChild(nodes[0].Children, "constraints")
 	if len(cn.Children) != 2 || cn.Children[1].ID != "con:1" {
 		t.Fatalf("want two constraint leaves con:0/con:1, got %+v", cn.Children)
 	}
-}
-
-// fixedSpecForTest returns a minimal FixedSpec for tree-builder tests; it only needs to satisfy
-// the ConstraintSpec interface — the faces are never resolved in unit tests.
-func fixedSpecForTest() ConstraintSpec {
-	return FixedSpec{Name: "C0", Faces: []string{"face:k"}}
 }
 
 // --- tiny test helpers (keep in this file) ---

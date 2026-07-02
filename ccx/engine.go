@@ -30,10 +30,11 @@ type Engine struct {
 	host HostCaller
 	api  *client.Client
 
-	mu       sync.Mutex         // guards analysis, extras and running
-	analysis *femmodel.Analysis // tree-owned source of truth (Solver/Mesh/Material/Result)
-	extras   StudySettings      // not-yet-modeled flat params; overlaid by projectAnalysis
-	running  bool               // a study is in flight (coalesces overlapping command triggers)
+	mu          sync.Mutex         // guards analysis, extras, builderKind and running
+	analysis    *femmodel.Analysis // tree-owned source of truth (Solver/Mesh/Material/Result/Constraints)
+	extras      StudySettings      // not-yet-modeled flat params; overlaid by projectAnalysis
+	builderKind ConstraintKind     // the constraint type the panel builder adds next
+	running     bool               // a study is in flight (coalesces overlapping command triggers)
 }
 
 // NewEngine binds the engine to the host transport with the default study parameters.

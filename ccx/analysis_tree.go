@@ -17,26 +17,25 @@ const AnalysisBrowserPaneID = "com.oblikovati.calculix.tree"
 // snapshots the model under lock, then makes the host call OUTSIDE the lock.
 func (e *Engine) ShowAnalysisTree() (wire.OKResult, error) {
 	e.mu.Lock()
-	nodes := analysisNodes(e.analysis, e.extras.Constraints)
+	nodes := analysisNodes(e.analysis)
 	e.mu.Unlock()
 	return e.api.Browser().SetPane(wire.BrowserPaneSpec{
 		ID: AnalysisBrowserPaneID, Title: "Analysis", Nodes: nodes,
 	})
 }
 
-// analysisNodes projects the aggregate (+ current constraint list) into the tree — pure and
-// directly testable. Example:
+// analysisNodes projects the aggregate into the tree — pure and directly testable. Example:
 //
-//	nodes := analysisNodes(femmodel.NewDefaultAnalysis(), nil)
+//	nodes := analysisNodes(femmodel.NewDefaultAnalysis())
 //	// nodes[0].ID == "analysis"
-func analysisNodes(a *femmodel.Analysis, cons []ConstraintSpec) []wire.BrowserNodeSpec {
+func analysisNodes(a *femmodel.Analysis) []wire.BrowserNodeSpec {
 	return []wire.BrowserNodeSpec{{
 		ID: "analysis", Label: "Analysis", Expanded: true, Menu: analysisRootMenu(),
 		Children: []wire.BrowserNodeSpec{
 			{ID: "solver", Label: "Solver: " + a.Solver().AnalysisType, Menu: editMenu()},
 			{ID: "mesh", Label: "Mesh", Menu: editMenu()},
 			materialsNode(a.Materials()),
-			constraintsNode(cons),
+			constraintsNode(len(a.Constraints())),
 			resultsNode(a.Results()),
 		},
 	}}
@@ -50,9 +49,9 @@ func materialsNode(mats []femmodel.MaterialObject) wire.BrowserNodeSpec {
 	return wire.BrowserNodeSpec{ID: "materials", Label: "Materials", Expanded: true, Children: kids}
 }
 
-func constraintsNode(cons []ConstraintSpec) wire.BrowserNodeSpec {
-	kids := make([]wire.BrowserNodeSpec, len(cons))
-	for i := range cons {
+func constraintsNode(n int) wire.BrowserNodeSpec {
+	kids := make([]wire.BrowserNodeSpec, n)
+	for i := range kids {
 		kids[i] = wire.BrowserNodeSpec{ID: fmt.Sprintf("con:%d", i), Label: fmt.Sprintf("Constraint %d", i+1)}
 	}
 	return wire.BrowserNodeSpec{

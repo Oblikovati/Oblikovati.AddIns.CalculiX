@@ -16,8 +16,13 @@ const PanelID = "com.oblikovati.calculix.panel"
 
 // ShowPanel creates (or replaces) the CalculiX study-parameters dockable window: the editable
 // study settings plus a Run button. Edits arrive as panel.valueChanged events (applyPanelEdit).
+// builderKind is engine state (not part of the aggregate projection) so it is overlaid onto s
+// under the lock after study() returns, keeping panelControls a pure function of StudySettings.
 func (e *Engine) ShowPanel() (wire.OKResult, error) {
 	s, _ := e.study()
+	e.mu.Lock()
+	s.BuilderKind = e.builderKind
+	e.mu.Unlock()
 	return e.api.DockableWindows().Set(wire.DockableWindowSpec{
 		ID:       PanelID,
 		Title:    "CalculiX FEA",
@@ -284,7 +289,7 @@ func (e *Engine) applyResultAggEdit(controlID, value string) bool {
 // applyMaterialOrLoadEdit handles the material, load, and constraint-builder control edits.
 func (e *Engine) applyMaterialOrLoadEdit(controlID, value string) {
 	if controlID == "constraint_type" {
-		e.extras.BuilderKind = ConstraintKind(strings.TrimSpace(value))
+		e.builderKind = ConstraintKind(strings.TrimSpace(value))
 		return
 	}
 	if e.applyMaterialEdit(controlID, value) {
