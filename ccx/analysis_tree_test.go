@@ -44,11 +44,23 @@ func TestAnalysisNodesListConstraints(t *testing.T) {
 // and per-object leaf (a seeded material + result appear as leaves) — must carry an inline glyph.
 func TestAnalysisNodesCarryGlyphs(t *testing.T) {
 	nodes := analysisNodes(femmodel.NewDefaultAnalysis())
+	var count int
 	forEachNode(nodes, func(n wire.BrowserNodeSpec) {
+		count++
 		if n.IconSVG == "" {
 			t.Errorf("node %q (%q) has no glyph", n.ID, n.Label)
 		}
 	})
+	// Guard against a vacuous pass: the default tree must carry the container nodes plus the
+	// seeded material + result leaves — so the leaf glyphs above are actually exercised.
+	mats := findChild(nodes[0].Children, "materials")
+	res := findChild(nodes[0].Children, "results")
+	if len(mats.Children) == 0 || len(res.Children) == 0 {
+		t.Fatalf("expected seeded material + result leaves to walk; mats=%d results=%d", len(mats.Children), len(res.Children))
+	}
+	if count < 7 {
+		t.Fatalf("expected the full default tree (root+5 categories+leaves) to be walked, visited only %d", count)
+	}
 }
 
 func forEachNode(ns []wire.BrowserNodeSpec, fn func(wire.BrowserNodeSpec)) {
