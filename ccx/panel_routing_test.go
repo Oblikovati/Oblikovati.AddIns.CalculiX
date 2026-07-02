@@ -22,17 +22,18 @@ func TestPanelEditRoutesToAggregate(t *testing.T) {
 
 func TestPanelEditRoutesRemainderToExtras(t *testing.T) {
 	e := NewEngine(nil)
-	// voltage is an EM BC that has not yet been migrated to the aggregate: it still
-	// lives in extras. Use it to confirm that the extras path is still reachable
-	// for not-yet-migrated controls (delta_t has moved to the thermal aggregate).
+	// All panel controls are now routed to the aggregate; voltage is fully migrated as of
+	// Phase 2.11 E2. This test verifies that the projection correctly reflects both the
+	// aggregate material (YoungGPa seeded) and the EM voltage edit (now in the aggregate).
 	e.applyPanelEdit("voltage", "12")
-	if e.extras.VoltageV != 12 {
-		t.Fatalf("voltage edit did not land in extras: %+v", e.extras.VoltageV)
+	em := e.analysis.EM()
+	if em.VoltageV != 12 {
+		t.Fatalf("voltage edit did not land in the EM aggregate: %+v", em)
 	}
-	// The projection must reflect both homes: material from the aggregate, VoltageV from extras.
+	// The projection must reflect both homes: material from the aggregate, VoltageV from the EM aggregate.
 	got, _ := e.study()
 	if got.YoungGPa == 0 || got.VoltageV != 12 {
-		t.Fatalf("study() did not reflect aggregate+extras: young=%v voltage=%v", got.YoungGPa, got.VoltageV)
+		t.Fatalf("study() did not reflect aggregate: young=%v voltage=%v", got.YoungGPa, got.VoltageV)
 	}
 }
 
@@ -145,5 +146,20 @@ func TestStudySwitchEditsRouteToAggregate(t *testing.T) {
 	s, _ := e.study()
 	if !s.ContactMode || s.FrictionMu != 0.2 || string(s.BodyScope) != "bodies with a selected face" {
 		t.Fatalf("study() did not reflect switch edits: %+v", s)
+	}
+}
+
+func TestEMEditsRouteToAggregate(t *testing.T) {
+	e := NewEngine(nil)
+	e.applyPanelEdit("voltage", "24")
+	e.applyPanelEdit("em_drive", "current")
+	e.applyPanelEdit("current_density", "3")
+	em := e.analysis.EM()
+	if em.EMDriveMode != "current" || em.VoltageV != 24 || em.CurrentDensity != 3 {
+		t.Fatalf("EM edits did not land in the aggregate: %+v", em)
+	}
+	s, _ := e.study()
+	if s.EMDriveMode != EMCurrent || s.VoltageV != 24 || s.CurrentDensity != 3 {
+		t.Fatalf("study() did not reflect EM edits: %+v", s)
 	}
 }

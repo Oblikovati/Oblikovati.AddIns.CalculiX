@@ -12,7 +12,24 @@ import "oblikovati.org/calculix/ccx/femmodel"
 // returned alongside for callers that want them directly.
 func projectAnalysis(a *femmodel.Analysis, extras StudySettings) (StudySettings, []ConstraintSpec) {
 	s := extras
+	s = overlaySolver(a, s)
+	s = overlayMesh(a, s)
+	s = overlayMaterial(a, s)
+	s = overlayLoad(a, s)
+	s = overlaySupport(a, s)
+	s = overlayThermal(a, s)
+	s = overlayEM(a, s)
+	if r, ok := a.PrimaryResult(); ok {
+		s.ResultField = ResultFieldKind(r.Field)
+		s.DeformScale = r.DeformScale
+	}
+	s.Constraints = mapConstraints(a.Constraints())
+	return s, s.Constraints
+}
 
+// overlaySolver copies the 6 solver-wide fields (analysis type, eigenmodes, transient time,
+// body scope, contact mode, friction) from the Analysis aggregate onto s.
+func overlaySolver(a *femmodel.Analysis, s StudySettings) StudySettings {
 	sv := a.Solver()
 	s.Analysis = AnalysisType(sv.AnalysisType)
 	s.Eigenmodes = sv.Eigenmodes
@@ -20,22 +37,15 @@ func projectAnalysis(a *femmodel.Analysis, extras StudySettings) (StudySettings,
 	s.BodyScope = BodyScope(sv.BodyScope)
 	s.ContactMode = sv.ContactMode
 	s.FrictionMu = sv.FrictionMu
+	return s
+}
 
+// overlayMesh copies the 2 mesh fields (max element size, element order) from the aggregate onto s.
+func overlayMesh(a *femmodel.Analysis, s StudySettings) StudySettings {
 	m := a.Mesh()
 	s.MeshSizeMM = m.MaxSizeMM
 	s.ElementOrder = elementOrder(m.Quadratic)
-
-	s = overlayMaterial(a, s)
-	s = overlayLoad(a, s)
-	s = overlaySupport(a, s)
-	s = overlayThermal(a, s)
-
-	if r, ok := a.PrimaryResult(); ok {
-		s.ResultField = ResultFieldKind(r.Field)
-		s.DeformScale = r.DeformScale
-	}
-	s.Constraints = mapConstraints(a.Constraints())
-	return s, s.Constraints
+	return s
 }
 
 // overlayMaterial copies all default-material fields from the Analysis aggregate onto s.
@@ -87,6 +97,14 @@ func overlayThermal(a *femmodel.Analysis, s StudySettings) StudySettings {
 	s.DeltaK, s.ColdTempK, s.HeatFluxQ = th.DeltaK, th.ColdTempK, th.HeatFluxQ
 	s.FilmCoeff, s.SinkTempK, s.BodyHeatRate = th.FilmCoeff, th.SinkTempK, th.BodyHeatRate
 	s.Emissivity, s.RadAmbientK = th.Emissivity, th.RadAmbientK
+	return s
+}
+
+// overlayEM copies the 3 electromagnetic field-drive fields from the aggregate onto s.
+func overlayEM(a *femmodel.Analysis, s StudySettings) StudySettings {
+	em := a.EM()
+	s.EMDriveMode = EMDrive(em.EMDriveMode)
+	s.VoltageV, s.CurrentDensity = em.VoltageV, em.CurrentDensity
 	return s
 }
 
