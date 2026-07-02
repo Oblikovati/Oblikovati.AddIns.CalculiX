@@ -9,12 +9,14 @@ import "strconv"
 // add-in projects onto its solver pipeline. Mutators preserve the invariants; ids are unique
 // within the aggregate.
 type Analysis struct {
-	solver     SolverObject
-	mesh       MeshObject
-	materials  []MaterialObject
-	results    []ResultObject
-	nextMat    int
-	nextResult int
+	solver         SolverObject
+	mesh           MeshObject
+	materials      []MaterialObject
+	results        []ResultObject
+	constraints    []ConstraintObject
+	nextMat        int
+	nextResult     int
+	nextConstraint int
 }
 
 // NewDefaultAnalysis returns the v1 defaults, matching the add-in's defaultSettings(): linear-static,
@@ -120,3 +122,18 @@ func (a *Analysis) PrimaryResult() (ResultObject, bool) {
 	}
 	return a.results[0], true
 }
+
+// Constraints returns the explicit constraint list in creation order.
+func (a *Analysis) Constraints() []ConstraintObject { return a.constraints }
+
+// AddConstraint appends a constraint with a fresh unique id and the given name, returning it.
+func (a *Analysis) AddConstraint(name string, o ConstraintObject) ConstraintObject {
+	a.nextConstraint++
+	o.id = "con" + strconv.Itoa(a.nextConstraint)
+	o.name = name
+	a.constraints = append(a.constraints, o)
+	return o
+}
+
+// ClearConstraints empties the explicit constraint list.
+func (a *Analysis) ClearConstraints() { a.constraints = nil }

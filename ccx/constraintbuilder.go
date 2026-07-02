@@ -46,8 +46,9 @@ func newConstraintSpec(kind ConstraintKind, name string, faces []string, s Study
 }
 
 // addConstraintFromSelection snapshots the current host face selection and builder parameters into
-// a new constraint and refreshes the panel. It runs OFF the session goroutine (it makes host
-// calls — read selection, redraw panel), so onCommandStarted dispatches it on its own goroutine.
+// a new constraint on the aggregate and refreshes the panel. It runs OFF the session goroutine (it
+// makes host calls — read selection, redraw panel), so onCommandStarted dispatches it on its own
+// goroutine. study() is called BEFORE the lock to avoid a double-lock deadlock.
 func (e *Engine) addConstraintFromSelection() {
 	sel, err := e.api.Model().Selection()
 	if err != nil {
@@ -59,22 +60,23 @@ func (e *Engine) addConstraintFromSelection() {
 		e.reportStatus("CalculiX: select a face of the part, then Add from selection.")
 		return
 	}
+	settings, _ := e.study() // projected params — acquires and releases e.mu internally
 	e.mu.Lock()
-	name := fmt.Sprintf("C%d", len(e.extras.Constraints))
-	spec := newConstraintSpec(e.extras.BuilderKind, name, faces, e.extras)
-	e.extras.Constraints = append(e.extras.Constraints, spec)
-	count := len(e.extras.Constraints)
+	name := fmt.Sprintf("C%d", len(e.analysis.Constraints()))
+	obj := e.analysis.AddConstraint(name, objectForKind(e.builderKind, faces, settings))
+	count := len(e.analysis.Constraints())
+	kind := ConstraintKind(obj.Kind)
 	e.mu.Unlock()
 	_, _ = e.ShowPanel()
 	e.reportStatus(fmt.Sprintf("CalculiX: added a %s constraint on %d face(s); %d total.",
-		builderKindOrDefault(spec.Kind()), len(faces), count))
+		builderKindOrDefault(kind), len(faces), count))
 }
 
-// clearConstraints empties the explicit constraint list (the study then falls back to the
-// synthesized default) and refreshes the panel.
+// clearConstraints empties the explicit constraint list on the aggregate (the study then falls
+// back to the synthesized default) and refreshes the panel.
 func (e *Engine) clearConstraints() {
 	e.mu.Lock()
-	e.extras.Constraints = nil
+	e.analysis.ClearConstraints()
 	e.mu.Unlock()
 	_, _ = e.ShowPanel()
 	e.reportStatus("CalculiX: cleared all added constraints.")

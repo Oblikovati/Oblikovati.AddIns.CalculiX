@@ -31,6 +31,7 @@ func projectAnalysis(a *femmodel.Analysis, extras StudySettings) (StudySettings,
 		s.ResultField = ResultFieldKind(r.Field)
 		s.DeformScale = r.DeformScale
 	}
+	s.Constraints = mapConstraints(a.Constraints())
 	return s, s.Constraints
 }
 

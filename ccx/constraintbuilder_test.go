@@ -44,34 +44,31 @@ func TestNewConstraintSpecFactory(t *testing.T) {
 
 func TestAddConstraintFromSelection(t *testing.T) {
 	e := NewEngine(&builderHost{refs: []string{encodeFaceRef("kA"), encodeFaceRef("kB")}})
-	e.extras.BuilderKind = KindRoller
+	e.builderKind = KindRoller
 
 	e.addConstraintFromSelection()
-	if len(e.extras.Constraints) != 1 {
-		t.Fatalf("expected 1 constraint after add, got %d", len(e.extras.Constraints))
-	}
-	roller, ok := e.extras.Constraints[0].(RollerSpec)
-	if !ok || len(roller.Faces) != 2 || roller.Name != "C0" {
-		t.Fatalf("added constraint should be a RollerSpec named C0 over 2 faces, got %+v", e.extras.Constraints[0])
+	cons := e.analysis.Constraints()
+	if len(cons) != 1 || cons[0].Kind != string(KindRoller) || len(cons[0].Faces) != 2 || cons[0].Name() != "C0" {
+		t.Fatalf("expected 1 roller C0 over 2 faces, got %+v", cons)
 	}
 
 	// A second add appends with a fresh unique name.
-	e.extras.BuilderKind = KindPressure
+	e.builderKind = KindPressure
 	e.addConstraintFromSelection()
-	if len(e.extras.Constraints) != 2 || e.extras.Constraints[1].Kind() != KindPressure {
-		t.Fatalf("second add should append a pressure constraint, got %+v", e.extras.Constraints)
+	if cons = e.analysis.Constraints(); len(cons) != 2 || cons[1].Kind != string(KindPressure) {
+		t.Fatalf("second add should be a pressure constraint, got %+v", cons)
 	}
 
 	e.clearConstraints()
-	if len(e.extras.Constraints) != 0 {
-		t.Fatalf("clear should empty the list, got %d", len(e.extras.Constraints))
+	if len(e.analysis.Constraints()) != 0 {
+		t.Fatalf("clear should empty the aggregate, got %d", len(e.analysis.Constraints()))
 	}
 }
 
 func TestAddConstraintWithoutSelectionAddsNothing(t *testing.T) {
 	e := NewEngine(&builderHost{refs: nil})
 	e.addConstraintFromSelection()
-	if len(e.extras.Constraints) != 0 {
-		t.Fatalf("an empty selection must add no constraint, got %d", len(e.extras.Constraints))
+	if len(e.analysis.Constraints()) != 0 {
+		t.Fatalf("an empty selection must add no constraint, got %d", len(e.analysis.Constraints()))
 	}
 }
