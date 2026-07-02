@@ -457,7 +457,7 @@ func (e *Engine) applyLoadEdit(controlID, value string) {
 	if e.applyAggStudySwitchEdit(controlID, value) {
 		return
 	}
-	e.applyAggEMEdit(controlID, value)
+	e.applyAggEMEdit(controlID, value) // terminal branch — an unrecognized control simply no-ops
 }
 
 // applyAggThermalEdit routes the 4 core thermal controls (temperature delta, cold-face temp,
