@@ -10,6 +10,9 @@ type SolverObject struct {
 	AnalysisType   string
 	Eigenmodes     int
 	TransientTimeS float64
+	BodyScope      string  // which solid bodies to analyse ("all solid bodies" | "bodies with a selected face")
+	ContactMode    bool    // treat detected body interfaces as unilateral contact (vs bonded *TIE)
+	FrictionMu     float64 // Coulomb friction for contact interfaces; 0 = frictionless
 }
 
 func newSolverObject(id, analysisType string, eigenmodes int, transientS float64) SolverObject {
