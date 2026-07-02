@@ -14,6 +14,7 @@ type Analysis struct {
 	materials      []MaterialObject
 	results        []ResultObject
 	constraints    []ConstraintObject
+	load           LoadDefaults
 	nextMat        int
 	nextResult     int
 	nextConstraint int
@@ -37,6 +38,8 @@ func NewDefaultAnalysis() *Analysis {
 	sv := a.Solver()
 	sv.BodyScope, sv.ContactMode, sv.FrictionMu = "all solid bodies", false, 0.3
 	a.SetSolver(sv)
+	a.SetLoad(LoadDefaults{LoadType: "force", LoadN: 100, PressureMPa: 1, GravityG: 1,
+		RotationRadS: 100, DisplacementMM: 0.1, HydroGradientMPaMM: 1e-5, HydroSurfaceZ: 0})
 	return a
 }
 
@@ -57,6 +60,12 @@ func (a *Analysis) SetSolver(s SolverObject) { s.id = a.solver.id; a.solver = s 
 
 // SetMesh replaces the mesh object (preserving its id).
 func (a *Analysis) SetMesh(m MeshObject) { m.id = a.mesh.id; a.mesh = m }
+
+// Load returns the default-load parameters.
+func (a *Analysis) Load() LoadDefaults { return a.load }
+
+// SetLoad replaces the default-load parameters.
+func (a *Analysis) SetLoad(l LoadDefaults) { a.load = l }
 
 // SetDefaultMaterial replaces the ScopeAll fallback material's mechanical fields, preserving its
 // id and ScopeAll flag (upholding the ≥1-ScopeAll-material invariant). If no ScopeAll material
