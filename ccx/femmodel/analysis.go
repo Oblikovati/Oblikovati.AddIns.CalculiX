@@ -9,8 +9,8 @@ import "strconv"
 // add-in projects onto its solver pipeline. Mutators preserve the invariants; ids are unique
 // within the aggregate.
 type Analysis struct {
-	solver     SolverObject
-	mesh       MeshObject
+	solver         SolverObject
+	mesh           MeshObject
 	materials      []MaterialObject
 	results        []ResultObject
 	constraints    []ConstraintObject
