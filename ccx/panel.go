@@ -295,6 +295,9 @@ func (e *Engine) applyMaterialOrLoadEdit(controlID, value string) {
 	if e.applyMaterialEdit(controlID, value) {
 		return
 	}
+	if e.applyAggLoadEdit(controlID, value) {
+		return
+	}
 	e.applyLoadEdit(controlID, value)
 }
 
@@ -381,42 +384,65 @@ func (e *Engine) applyAggEMHyperMatEdit(controlID, value string) bool {
 	return true
 }
 
-// applyLoadEdit handles the mechanical-load controls, delegating the thermal/electromagnetic
-// boundary-condition controls to applyFieldBCEdit.
+// applyAggLoadEdit routes the load-type and hydrostatic controls to the Analysis load
+// template. The 5 numeric magnitude controls are delegated to applyAggLoadScalarEdit.
+// Returns whether the control was recognised (false lets the caller fall through to extras).
+func (e *Engine) applyAggLoadEdit(controlID, value string) bool {
+	ld := e.analysis.Load()
+	switch controlID {
+	case "load_type":
+		ld.LoadType = strings.TrimSpace(value)
+	case "hydro_gradient":
+		ld.HydroGradientMPaMM = panelNum(value, ld.HydroGradientMPaMM)
+	case "hydro_surface":
+		ld.HydroSurfaceZ = panelNum(value, ld.HydroSurfaceZ)
+	default:
+		return e.applyAggLoadScalarEdit(controlID, value)
+	}
+	e.analysis.SetLoad(ld)
+	return true
+}
+
+// applyAggLoadScalarEdit routes the 5 numeric load-magnitude controls (force, pressure,
+// gravity, rotation, displacement) to the Analysis load template. Returns whether it matched.
+func (e *Engine) applyAggLoadScalarEdit(controlID, value string) bool {
+	ld := e.analysis.Load()
+	switch controlID {
+	case "load":
+		ld.LoadN = panelNum(value, ld.LoadN)
+	case "pressure":
+		ld.PressureMPa = panelNum(value, ld.PressureMPa)
+	case "gravity":
+		ld.GravityG = panelNum(value, ld.GravityG)
+	case "rotation":
+		ld.RotationRadS = panelNum(value, ld.RotationRadS)
+	case "displacement":
+		ld.DisplacementMM = panelNum(value, ld.DisplacementMM)
+	default:
+		return false
+	}
+	e.analysis.SetLoad(ld)
+	return true
+}
+
+// applyLoadEdit handles the thermal/electromagnetic boundary-condition controls (the
+// mechanical-load controls have moved to applyAggLoadEdit; support controls stay in
+// applySupportEdit).
 func (e *Engine) applyLoadEdit(controlID, value string) {
 	if e.applySupportEdit(controlID, value) {
 		return
 	}
-	switch controlID {
-	case "load_type":
-		e.extras.LoadType = LoadType(strings.TrimSpace(value))
-	case "load":
-		e.extras.LoadN = panelNum(value, e.extras.LoadN)
-	case "pressure":
-		e.extras.PressureMPa = panelNum(value, e.extras.PressureMPa)
-	case "gravity":
-		e.extras.GravityG = panelNum(value, e.extras.GravityG)
-	case "rotation":
-		e.extras.RotationRadS = panelNum(value, e.extras.RotationRadS)
-	case "displacement":
-		e.extras.DisplacementMM = panelNum(value, e.extras.DisplacementMM)
-	default:
-		e.applyFieldBCEdit(controlID, value)
-	}
+	e.applyFieldBCEdit(controlID, value)
 }
 
-// applySupportEdit handles the support controls (clamp vs elastic spring) and the hydrostatic
-// pressure parameters, returning whether it matched.
+// applySupportEdit handles the support controls (clamp vs elastic spring), returning whether
+// it matched. The hydrostatic parameters have moved to applyAggLoadEdit.
 func (e *Engine) applySupportEdit(controlID, value string) bool {
 	switch controlID {
 	case "support_type":
 		e.extras.SupportType = SupportType(strings.TrimSpace(value))
 	case "spring_stiffness":
 		e.extras.SpringStiffMM = panelNum(value, e.extras.SpringStiffMM)
-	case "hydro_gradient":
-		e.extras.HydroGradientMPaMM = panelNum(value, e.extras.HydroGradientMPaMM)
-	case "hydro_surface":
-		e.extras.HydroSurfaceZ = panelNum(value, e.extras.HydroSurfaceZ)
 	default:
 		return false
 	}

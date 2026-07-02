@@ -22,14 +22,17 @@ func TestPanelEditRoutesToAggregate(t *testing.T) {
 
 func TestPanelEditRoutesRemainderToExtras(t *testing.T) {
 	e := NewEngine(nil)
-	e.applyPanelEdit("gravity", "2.5")
-	if e.extras.GravityG != 2.5 {
-		t.Fatalf("gravity edit did not land in extras: %+v", e.extras.GravityG)
+	// delta_t is a thermal BC that has not yet been migrated to the aggregate: it still
+	// lives in extras. Use it (rather than gravity, which now routes to the aggregate) to
+	// confirm that the extras path is still reachable for not-yet-migrated controls.
+	e.applyPanelEdit("delta_t", "50")
+	if e.extras.DeltaK != 50 {
+		t.Fatalf("delta_t edit did not land in extras: %+v", e.extras.DeltaK)
 	}
-	// And the projection reflects both homes.
+	// The projection must reflect both homes: material from the aggregate, DeltaK from extras.
 	got, _ := e.study()
-	if got.YoungGPa == 0 || got.GravityG != 2.5 {
-		t.Fatalf("study() did not reflect aggregate+extras: young=%v gravity=%v", got.YoungGPa, got.GravityG)
+	if got.YoungGPa == 0 || got.DeltaK != 50 {
+		t.Fatalf("study() did not reflect aggregate+extras: young=%v deltaK=%v", got.YoungGPa, got.DeltaK)
 	}
 }
 
@@ -66,6 +69,27 @@ func TestThermalMaterialEditRoutesToAggregate(t *testing.T) {
 	s, _ := e.study()
 	if s.ThermalAlpha != 2.5e-5 || s.Conductivity != 77 || s.SpecificHeat != 4.2e8 {
 		t.Fatalf("study() did not reflect thermal edits: %+v", s)
+	}
+}
+
+func TestLoadEditsRouteToAggregate(t *testing.T) {
+	e := NewEngine(nil)
+	e.applyPanelEdit("load_type", "pressure")
+	e.applyPanelEdit("load", "250")
+	e.applyPanelEdit("pressure", "3")
+	e.applyPanelEdit("gravity", "2")
+	e.applyPanelEdit("rotation", "60")
+	e.applyPanelEdit("displacement", "0.5")
+	e.applyPanelEdit("hydro_gradient", "2e-5")
+	e.applyPanelEdit("hydro_surface", "8")
+	ld := e.analysis.Load()
+	if ld.LoadType != "pressure" || ld.LoadN != 250 || ld.PressureMPa != 3 || ld.GravityG != 2 ||
+		ld.RotationRadS != 60 || ld.DisplacementMM != 0.5 || ld.HydroGradientMPaMM != 2e-5 || ld.HydroSurfaceZ != 8 {
+		t.Fatalf("load edits did not land in the aggregate: %+v", ld)
+	}
+	s, _ := e.study()
+	if string(s.LoadType) != "pressure" || s.LoadN != 250 || s.HydroSurfaceZ != 8 {
+		t.Fatalf("study() did not reflect load edits: %+v", s)
 	}
 }
 

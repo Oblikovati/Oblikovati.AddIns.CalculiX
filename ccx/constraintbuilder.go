@@ -48,7 +48,8 @@ func newConstraintSpec(kind ConstraintKind, name string, faces []string, s Study
 // addConstraintFromSelection snapshots the current host face selection and builder parameters into
 // a new constraint on the aggregate and refreshes the panel. It runs OFF the session goroutine (it
 // makes host calls — read selection, redraw panel), so onCommandStarted dispatches it on its own
-// goroutine. study() is called BEFORE the lock to avoid a double-lock deadlock.
+// goroutine. params + count + insert are captured under a single e.mu.Lock to close the TOCTOU
+// that existed when study() released the lock before AddConstraint ran.
 func (e *Engine) addConstraintFromSelection() {
 	sel, err := e.api.Model().Selection()
 	if err != nil {
@@ -60,8 +61,11 @@ func (e *Engine) addConstraintFromSelection() {
 		e.reportStatus("CalculiX: select a face of the part, then Add from selection.")
 		return
 	}
-	settings, _ := e.study() // projected params — acquires and releases e.mu internally
+	// Capture params, name, and insert under a single lock: closing the TOCTOU where
+	// settings could drift between study() returning and the constraint being appended.
+	// projectAnalysis takes no lock itself, so calling it here is safe.
 	e.mu.Lock()
+	settings, _ := projectAnalysis(e.analysis, e.extras)
 	name := fmt.Sprintf("C%d", len(e.analysis.Constraints()))
 	obj := e.analysis.AddConstraint(name, objectForKind(e.builderKind, faces, settings))
 	count := len(e.analysis.Constraints())
