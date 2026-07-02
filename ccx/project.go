@@ -26,7 +26,7 @@ func projectAnalysis(a *femmodel.Analysis, extras StudySettings) (StudySettings,
 	s.ElementOrder = elementOrder(m.Quadratic)
 
 	s = overlayMaterial(a, s)
-	overlayLoad(&s, a)
+	s = overlayLoad(a, s)
 
 	if r, ok := a.PrimaryResult(); ok {
 		s.ResultField = ResultFieldKind(r.Field)
@@ -61,12 +61,13 @@ func overlayMaterial(a *femmodel.Analysis, s StudySettings) StudySettings {
 
 // overlayLoad copies the 8 default-load fields from the Analysis aggregate onto s.
 // Covers load type, force, pressure, gravity, rotation, displacement, and hydrostatic params.
-func overlayLoad(s *StudySettings, a *femmodel.Analysis) {
+func overlayLoad(a *femmodel.Analysis, s StudySettings) StudySettings {
 	ld := a.Load()
 	s.LoadType = LoadType(ld.LoadType)
 	s.LoadN, s.PressureMPa, s.GravityG = ld.LoadN, ld.PressureMPa, ld.GravityG
 	s.RotationRadS, s.DisplacementMM = ld.RotationRadS, ld.DisplacementMM
 	s.HydroGradientMPaMM, s.HydroSurfaceZ = ld.HydroGradientMPaMM, ld.HydroSurfaceZ
+	return s
 }
 
 // elementOrder maps the mesh object's Quadratic flag to the deck element order.

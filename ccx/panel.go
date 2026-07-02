@@ -388,6 +388,9 @@ func (e *Engine) applyAggEMHyperMatEdit(controlID, value string) bool {
 // template. The 5 numeric magnitude controls are delegated to applyAggLoadScalarEdit.
 // Returns whether the control was recognised (false lets the caller fall through to extras).
 func (e *Engine) applyAggLoadEdit(controlID, value string) bool {
+	if e.applyAggLoadScalarEdit(controlID, value) {
+		return true
+	}
 	ld := e.analysis.Load()
 	switch controlID {
 	case "load_type":
@@ -397,7 +400,7 @@ func (e *Engine) applyAggLoadEdit(controlID, value string) bool {
 	case "hydro_surface":
 		ld.HydroSurfaceZ = panelNum(value, ld.HydroSurfaceZ)
 	default:
-		return e.applyAggLoadScalarEdit(controlID, value)
+		return false
 	}
 	e.analysis.SetLoad(ld)
 	return true
