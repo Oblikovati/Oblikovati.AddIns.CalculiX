@@ -30,9 +30,8 @@ type Engine struct {
 	host HostCaller
 	api  *client.Client
 
-	mu          sync.Mutex         // guards analysis, extras, builderKind and running
+	mu          sync.Mutex         // guards analysis, builderKind and running
 	analysis    *femmodel.Analysis // tree-owned source of truth (Solver/Mesh/Material/Result/Constraints)
-	extras      StudySettings      // not-yet-modeled flat params; overlaid by projectAnalysis
 	builderKind ConstraintKind     // the constraint type the panel builder adds next
 	running     bool               // a study is in flight (coalesces overlapping command triggers)
 }
@@ -40,7 +39,7 @@ type Engine struct {
 // NewEngine binds the engine to the host transport with the default study parameters.
 func NewEngine(host HostCaller) *Engine {
 	return &Engine{host: host, api: client.New(host),
-		analysis: femmodel.NewDefaultAnalysis(), extras: defaultSettings()}
+		analysis: femmodel.NewDefaultAnalysis()}
 }
 
 // study snapshots the study model under lock and projects it to the flat StudySettings the
@@ -48,7 +47,7 @@ func NewEngine(host HostCaller) *Engine {
 func (e *Engine) study() (StudySettings, []ConstraintSpec) {
 	e.mu.Lock()
 	defer e.mu.Unlock()
-	return projectAnalysis(e.analysis, e.extras)
+	return projectAnalysis(e.analysis)
 }
 
 // Notify receives host event bytes. A command.started carrying RunStudyCommandID runs the

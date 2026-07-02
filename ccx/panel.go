@@ -219,8 +219,7 @@ func labelID(title string) string {
 }
 
 // applyPanelEdit writes one edited study parameter back into the engine, keyed by control id.
-// All controls reach the femmodel aggregate via their per-object helpers; e.extras is used only
-// as the base for projectAnalysis (the flat fields the aggregate overlays on top of).
+// All controls reach the femmodel aggregate via their per-object helpers.
 func (e *Engine) applyPanelEdit(controlID, value string) {
 	e.mu.Lock()
 	defer e.mu.Unlock()

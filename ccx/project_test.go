@@ -13,7 +13,7 @@ import (
 // defaultSettings() field-for-field. This is the safety net that lets later phases migrate fields
 // into the tree one at a time without drifting the solve inputs.
 func TestProjectDefaultAnalysisEqualsDefaultSettings(t *testing.T) {
-	got, specs := projectAnalysis(femmodel.NewDefaultAnalysis(), defaultSettings())
+	got, specs := projectAnalysis(femmodel.NewDefaultAnalysis())
 	want := defaultSettings()
 	if !reflect.DeepEqual(got, want) {
 		t.Fatalf("projection drifted from defaults:\n got=%+v\nwant=%+v", got, want)
@@ -28,7 +28,7 @@ func TestProjectAppliesTreeOverrides(t *testing.T) {
 	a := femmodel.NewDefaultAnalysis()
 	a.SetSolver(femmodel.SolverObject{AnalysisType: "frequency", Eigenmodes: 12, TransientTimeS: 0})
 	a.SetMesh(femmodel.MeshObject{MaxSizeMM: 2.5, Quadratic: false})
-	got, _ := projectAnalysis(a, defaultSettings())
+	got, _ := projectAnalysis(a)
 	if got.Analysis != AnalysisFrequency || got.Eigenmodes != 12 {
 		t.Fatalf("solver override lost: %+v", got)
 	}
