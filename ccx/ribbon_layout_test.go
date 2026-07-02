@@ -19,6 +19,19 @@ func TestCommandArgsPlacesOnFEATab(t *testing.T) {
 	if a.ButtonStyle != types.LargeIconButton {
 		t.Fatalf("Run Study should be a large button, got %v", a.ButtonStyle)
 	}
+	if a.IconSVG == "" {
+		t.Fatal("Run Study should carry an inline glyph")
+	}
+}
+
+// TestEveryCommandIsAnIconButton guards the icon pass: every ribbon command must resolve a bundled
+// glyph, so a command added without an icon asset fails here rather than shipping an unglyphed button.
+func TestEveryCommandIsAnIconButton(t *testing.T) {
+	for _, c := range ccxCommands {
+		if commandArgs(c.id, c.name, c.tip).IconSVG == "" {
+			t.Errorf("command %q has no glyph (icons/%s.svg missing?)", c.id, ccxRibbonSpots[c.id].icon)
+		}
+	}
 }
 
 func TestEveryCommandHasARibbonSpot(t *testing.T) {

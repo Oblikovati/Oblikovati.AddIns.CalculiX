@@ -40,6 +40,24 @@ func TestAnalysisNodesListConstraints(t *testing.T) {
 	}
 }
 
+// TestAnalysisNodesCarryGlyphs guards the icon pass: every node the tree emits — root, category,
+// and per-object leaf (a seeded material + result appear as leaves) — must carry an inline glyph.
+func TestAnalysisNodesCarryGlyphs(t *testing.T) {
+	nodes := analysisNodes(femmodel.NewDefaultAnalysis())
+	forEachNode(nodes, func(n wire.BrowserNodeSpec) {
+		if n.IconSVG == "" {
+			t.Errorf("node %q (%q) has no glyph", n.ID, n.Label)
+		}
+	})
+}
+
+func forEachNode(ns []wire.BrowserNodeSpec, fn func(wire.BrowserNodeSpec)) {
+	for _, n := range ns {
+		fn(n)
+		forEachNode(n.Children, fn)
+	}
+}
+
 // --- tiny test helpers (keep in this file) ---
 func childIDs(ns []wire.BrowserNodeSpec) []string {
 	out := make([]string, len(ns))
