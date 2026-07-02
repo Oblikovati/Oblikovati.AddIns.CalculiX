@@ -30,10 +30,10 @@ func (e *Engine) ShowAnalysisTree() (wire.OKResult, error) {
 //	// nodes[0].ID == "analysis"
 func analysisNodes(a *femmodel.Analysis) []wire.BrowserNodeSpec {
 	return []wire.BrowserNodeSpec{{
-		ID: "analysis", Label: "Analysis", Expanded: true, Menu: analysisRootMenu(),
+		ID: "analysis", Label: "Analysis", IconSVG: iconSVG("analysis"), Expanded: true, Menu: analysisRootMenu(),
 		Children: []wire.BrowserNodeSpec{
-			{ID: "solver", Label: "Solver: " + a.Solver().AnalysisType, Menu: editMenu()},
-			{ID: "mesh", Label: "Mesh", Menu: editMenu()},
+			{ID: "solver", Label: "Solver: " + a.Solver().AnalysisType, IconSVG: iconSVG("solver"), Menu: editMenu()},
+			{ID: "mesh", Label: "Mesh", IconSVG: iconSVG("mesh"), Menu: editMenu()},
 			materialsNode(a.Materials()),
 			constraintsNode(len(a.Constraints())),
 			resultsNode(a.Results()),
@@ -42,30 +42,33 @@ func analysisNodes(a *femmodel.Analysis) []wire.BrowserNodeSpec {
 }
 
 func materialsNode(mats []femmodel.MaterialObject) wire.BrowserNodeSpec {
+	glyph := iconSVG("material")
 	kids := make([]wire.BrowserNodeSpec, len(mats))
 	for i, m := range mats {
-		kids[i] = wire.BrowserNodeSpec{ID: fmt.Sprintf("mat:%d", i), Label: m.Name(), Menu: editMenu()}
+		kids[i] = wire.BrowserNodeSpec{ID: fmt.Sprintf("mat:%d", i), Label: m.Name(), IconSVG: glyph, Menu: editMenu()}
 	}
-	return wire.BrowserNodeSpec{ID: "materials", Label: "Materials", Expanded: true, Children: kids}
+	return wire.BrowserNodeSpec{ID: "materials", Label: "Materials", IconSVG: glyph, Expanded: true, Children: kids}
 }
 
 func constraintsNode(n int) wire.BrowserNodeSpec {
+	glyph := iconSVG("constraint")
 	kids := make([]wire.BrowserNodeSpec, n)
 	for i := range kids {
-		kids[i] = wire.BrowserNodeSpec{ID: fmt.Sprintf("con:%d", i), Label: fmt.Sprintf("Constraint %d", i+1)}
+		kids[i] = wire.BrowserNodeSpec{ID: fmt.Sprintf("con:%d", i), Label: fmt.Sprintf("Constraint %d", i+1), IconSVG: glyph}
 	}
 	return wire.BrowserNodeSpec{
-		ID: "constraints", Label: "Constraints & Loads", Expanded: true,
+		ID: "constraints", Label: "Constraints & Loads", IconSVG: glyph, Expanded: true,
 		Menu: constraintsMenu(), Children: kids,
 	}
 }
 
 func resultsNode(results []femmodel.ResultObject) wire.BrowserNodeSpec {
+	glyph := iconSVG("result")
 	kids := make([]wire.BrowserNodeSpec, len(results))
 	for i, r := range results {
-		kids[i] = wire.BrowserNodeSpec{ID: fmt.Sprintf("result:%d", i), Label: r.Field, Menu: editMenu()}
+		kids[i] = wire.BrowserNodeSpec{ID: fmt.Sprintf("result:%d", i), Label: r.Field, IconSVG: glyph, Menu: editMenu()}
 	}
-	return wire.BrowserNodeSpec{ID: "results", Label: "Results", Expanded: true, Children: kids}
+	return wire.BrowserNodeSpec{ID: "results", Label: "Results", IconSVG: glyph, Expanded: true, Children: kids}
 }
 
 func analysisRootMenu() []wire.BrowserMenuItem {
