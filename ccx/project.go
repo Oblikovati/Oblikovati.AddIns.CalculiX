@@ -28,6 +28,7 @@ func projectAnalysis(a *femmodel.Analysis, extras StudySettings) (StudySettings,
 	s = overlayMaterial(a, s)
 	s = overlayLoad(a, s)
 	s = overlaySupport(a, s)
+	s = overlayThermal(a, s)
 
 	if r, ok := a.PrimaryResult(); ok {
 		s.ResultField = ResultFieldKind(r.Field)
@@ -76,6 +77,16 @@ func overlaySupport(a *femmodel.Analysis, s StudySettings) StudySettings {
 	sup := a.Support()
 	s.SupportType = SupportType(sup.SupportType)
 	s.SpringStiffMM = sup.SpringStiffMM
+	return s
+}
+
+// overlayThermal copies the 9 thermal boundary-condition fields from the aggregate onto s.
+func overlayThermal(a *femmodel.Analysis, s StudySettings) StudySettings {
+	th := a.Thermal()
+	s.HeatDriveMode = HeatDrive(th.HeatDriveMode)
+	s.DeltaK, s.ColdTempK, s.HeatFluxQ = th.DeltaK, th.ColdTempK, th.HeatFluxQ
+	s.FilmCoeff, s.SinkTempK, s.BodyHeatRate = th.FilmCoeff, th.SinkTempK, th.BodyHeatRate
+	s.Emissivity, s.RadAmbientK = th.Emissivity, th.RadAmbientK
 	return s
 }
 

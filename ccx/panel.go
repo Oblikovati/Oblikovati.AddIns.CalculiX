@@ -444,54 +444,66 @@ func (e *Engine) applyAggSupportEdit(controlID, value string) bool {
 	return true
 }
 
-// applyLoadEdit handles the thermal/electromagnetic boundary-condition controls (the
-// mechanical-load controls have moved to applyAggLoadEdit; support controls have moved
-// to applyAggSupportEdit).
+// applyLoadEdit routes the non-tree study controls: support and thermal BCs reach the femmodel
+// aggregate; the study-wide switches reach the SolverObject; the remaining EM controls write to
+// e.extras (still to be migrated). Each helper returns whether it matched, so the first match wins.
 func (e *Engine) applyLoadEdit(controlID, value string) {
 	if e.applyAggSupportEdit(controlID, value) {
 		return
 	}
-	e.applyFieldBCEdit(controlID, value)
+	if e.applyAggThermalEdit(controlID, value) {
+		return
+	}
+	if e.applyAggStudySwitchEdit(controlID, value) {
+		return
+	}
+	e.applyEMEdit(controlID, value)
 }
 
-// applyFieldBCEdit handles the core thermal boundary-condition controls, delegating the
-// heat-drive (convection/body/radiation) parameters to applyHeatModeEdit and the
-// electromagnetic controls to applyEMEdit.
-func (e *Engine) applyFieldBCEdit(controlID, value string) {
+// applyAggThermalEdit routes the 4 core thermal controls (temperature delta, cold-face temp,
+// surface flux, heat-drive mode) to the Analysis thermal template, delegating the 5 mode
+// parameters to applyAggThermalModeEdit. Returns whether the control was recognised.
+func (e *Engine) applyAggThermalEdit(controlID, value string) bool {
+	if e.applyAggThermalModeEdit(controlID, value) {
+		return true
+	}
+	th := e.analysis.Thermal()
 	switch controlID {
 	case "delta_t":
-		e.extras.DeltaK = panelNum(value, e.extras.DeltaK)
+		th.DeltaK = panelNum(value, th.DeltaK)
 	case "cold_temp":
-		e.extras.ColdTempK = panelNum(value, e.extras.ColdTempK)
+		th.ColdTempK = panelNum(value, th.ColdTempK)
 	case "heat_flux":
-		e.extras.HeatFluxQ = panelNum(value, e.extras.HeatFluxQ)
+		th.HeatFluxQ = panelNum(value, th.HeatFluxQ)
 	case "heat_drive":
-		e.extras.HeatDriveMode = HeatDrive(strings.TrimSpace(value))
+		th.HeatDriveMode = strings.TrimSpace(value)
 	default:
-		e.applyHeatModeEdit(controlID, value)
+		return false
 	}
+	e.analysis.SetThermal(th)
+	return true
 }
 
-// applyHeatModeEdit handles the convection / body-source / radiation heat-drive parameters,
-// delegating anything else to applyEMEdit.
-func (e *Engine) applyHeatModeEdit(controlID, value string) {
+// applyAggThermalModeEdit routes the 5 heat-drive-mode parameters (convection film + sink,
+// body-source rate, radiation emissivity + ambient) to the Analysis thermal template.
+func (e *Engine) applyAggThermalModeEdit(controlID, value string) bool {
+	th := e.analysis.Thermal()
 	switch controlID {
 	case "film_coeff":
-		e.extras.FilmCoeff = panelNum(value, e.extras.FilmCoeff)
+		th.FilmCoeff = panelNum(value, th.FilmCoeff)
 	case "sink_temp":
-		e.extras.SinkTempK = panelNum(value, e.extras.SinkTempK)
+		th.SinkTempK = panelNum(value, th.SinkTempK)
 	case "body_heat":
-		e.extras.BodyHeatRate = panelNum(value, e.extras.BodyHeatRate)
+		th.BodyHeatRate = panelNum(value, th.BodyHeatRate)
 	case "emissivity":
-		e.extras.Emissivity = panelNum(value, e.extras.Emissivity)
+		th.Emissivity = panelNum(value, th.Emissivity)
 	case "rad_ambient":
-		e.extras.RadAmbientK = panelNum(value, e.extras.RadAmbientK)
+		th.RadAmbientK = panelNum(value, th.RadAmbientK)
 	default:
-		if e.applyAggStudySwitchEdit(controlID, value) {
-			return
-		}
-		e.applyEMEdit(controlID, value)
+		return false
 	}
+	e.analysis.SetThermal(th)
+	return true
 }
 
 // applyAggStudySwitchEdit routes the study-wide switches (body scope, contact mode, friction) to the
