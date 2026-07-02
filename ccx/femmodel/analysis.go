@@ -17,6 +17,7 @@ type Analysis struct {
 	load           LoadDefaults
 	support        SupportDefaults
 	thermal        ThermalDefaults
+	em             EMDefaults
 	nextMat        int
 	nextResult     int
 	nextConstraint int
@@ -45,6 +46,7 @@ func NewDefaultAnalysis() *Analysis {
 	a.SetSupport(SupportDefaults{SupportType: "fixed", SpringStiffMM: 1000})
 	a.SetThermal(ThermalDefaults{HeatDriveMode: "flux", DeltaK: 100, ColdTempK: 0, HeatFluxQ: 50,
 		FilmCoeff: 0.5, SinkTempK: 0, BodyHeatRate: 1, Emissivity: 0.8, RadAmbientK: 300})
+	a.SetEM(EMDefaults{EMDriveMode: "voltage", VoltageV: 5, CurrentDensity: 1})
 	return a
 }
 
@@ -83,6 +85,12 @@ func (a *Analysis) Thermal() ThermalDefaults { return a.thermal }
 
 // SetThermal replaces the thermal boundary-condition parameters.
 func (a *Analysis) SetThermal(t ThermalDefaults) { a.thermal = t }
+
+// EM returns the electromagnetic field-drive parameters.
+func (a *Analysis) EM() EMDefaults { return a.em }
+
+// SetEM replaces the electromagnetic field-drive parameters.
+func (a *Analysis) SetEM(e EMDefaults) { a.em = e }
 
 // SetDefaultMaterial replaces the ScopeAll fallback material's mechanical fields, preserving its
 // id and ScopeAll flag (upholding the ≥1-ScopeAll-material invariant). If no ScopeAll material

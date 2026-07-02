@@ -219,8 +219,8 @@ func labelID(title string) string {
 }
 
 // applyPanelEdit writes one edited study parameter back into the engine, keyed by control id.
-// The migrated controls (solver/mesh/material/result/load/support) reach the femmodel aggregate
-// via their per-object helpers; remaining thermal/EM controls write to e.extras.
+// All controls reach the femmodel aggregate via their per-object helpers; e.extras is used only
+// as the base for projectAnalysis (the flat fields the aggregate overlays on top of).
 func (e *Engine) applyPanelEdit(controlID, value string) {
 	e.mu.Lock()
 	defer e.mu.Unlock()
@@ -386,7 +386,7 @@ func (e *Engine) applyAggEMHyperMatEdit(controlID, value string) bool {
 
 // applyAggLoadEdit routes the load-type and hydrostatic controls to the Analysis load
 // template. The 5 numeric magnitude controls are delegated to applyAggLoadScalarEdit.
-// Returns whether the control was recognised (false lets the caller fall through to extras).
+// Returns whether the control was recognised.
 func (e *Engine) applyAggLoadEdit(controlID, value string) bool {
 	if e.applyAggLoadScalarEdit(controlID, value) {
 		return true
@@ -444,9 +444,9 @@ func (e *Engine) applyAggSupportEdit(controlID, value string) bool {
 	return true
 }
 
-// applyLoadEdit routes the non-tree study controls: support and thermal BCs reach the femmodel
-// aggregate; the study-wide switches reach the SolverObject; the remaining EM controls write to
-// e.extras (still to be migrated). Each helper returns whether it matched, so the first match wins.
+// applyLoadEdit routes the non-tree study controls: support, thermal BCs, study-wide switches,
+// and EM field-drive parameters all reach the femmodel aggregate. Each helper returns whether it
+// matched, so the first match wins.
 func (e *Engine) applyLoadEdit(controlID, value string) {
 	if e.applyAggSupportEdit(controlID, value) {
 		return
@@ -457,7 +457,7 @@ func (e *Engine) applyLoadEdit(controlID, value string) {
 	if e.applyAggStudySwitchEdit(controlID, value) {
 		return
 	}
-	e.applyEMEdit(controlID, value)
+	e.applyAggEMEdit(controlID, value) // terminal branch — an unrecognized control simply no-ops
 }
 
 // applyAggThermalEdit routes the 4 core thermal controls (temperature delta, cold-face temp,
@@ -524,16 +524,22 @@ func (e *Engine) applyAggStudySwitchEdit(controlID, value string) bool {
 	return true
 }
 
-// applyEMEdit handles the electromagnetic boundary-condition controls.
-func (e *Engine) applyEMEdit(controlID, value string) {
+// applyAggEMEdit routes the 3 electromagnetic controls (applied voltage, drive mode, injected
+// current density) to the Analysis EM template. Returns whether the control was recognised.
+func (e *Engine) applyAggEMEdit(controlID, value string) bool {
+	em := e.analysis.EM()
 	switch controlID {
 	case "voltage":
-		e.extras.VoltageV = panelNum(value, e.extras.VoltageV)
+		em.VoltageV = panelNum(value, em.VoltageV)
 	case "em_drive":
-		e.extras.EMDriveMode = EMDrive(strings.TrimSpace(value))
+		em.EMDriveMode = strings.TrimSpace(value)
 	case "current_density":
-		e.extras.CurrentDensity = panelNum(value, e.extras.CurrentDensity)
+		em.CurrentDensity = panelNum(value, em.CurrentDensity)
+	default:
+		return false
 	}
+	e.analysis.SetEM(em)
+	return true
 }
 
 // elementOrderOptions / elementOrderLabel / parseElementOrder map the order enum to the
