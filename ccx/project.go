@@ -27,6 +27,7 @@ func projectAnalysis(a *femmodel.Analysis, extras StudySettings) (StudySettings,
 
 	s = overlayMaterial(a, s)
 	s = overlayLoad(a, s)
+	s = overlaySupport(a, s)
 
 	if r, ok := a.PrimaryResult(); ok {
 		s.ResultField = ResultFieldKind(r.Field)
@@ -67,6 +68,14 @@ func overlayLoad(a *femmodel.Analysis, s StudySettings) StudySettings {
 	s.LoadN, s.PressureMPa, s.GravityG = ld.LoadN, ld.PressureMPa, ld.GravityG
 	s.RotationRadS, s.DisplacementMM = ld.RotationRadS, ld.DisplacementMM
 	s.HydroGradientMPaMM, s.HydroSurfaceZ = ld.HydroGradientMPaMM, ld.HydroSurfaceZ
+	return s
+}
+
+// overlaySupport copies the 2 default-support fields from the Analysis aggregate onto s.
+func overlaySupport(a *femmodel.Analysis, s StudySettings) StudySettings {
+	sup := a.Support()
+	s.SupportType = SupportType(sup.SupportType)
+	s.SpringStiffMM = sup.SpringStiffMM
 	return s
 }
 

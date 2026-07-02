@@ -219,8 +219,8 @@ func labelID(title string) string {
 }
 
 // applyPanelEdit writes one edited study parameter back into the engine, keyed by control id.
-// The 11 tree-owned controls (solver/mesh/material/result) reach the femmodel aggregate via their
-// per-object helpers; everything else writes to e.extras.
+// The migrated controls (solver/mesh/material/result/load/support) reach the femmodel aggregate
+// via their per-object helpers; remaining thermal/EM controls write to e.extras.
 func (e *Engine) applyPanelEdit(controlID, value string) {
 	e.mu.Lock()
 	defer e.mu.Unlock()
@@ -428,28 +428,30 @@ func (e *Engine) applyAggLoadScalarEdit(controlID, value string) bool {
 	return true
 }
 
-// applyLoadEdit handles the thermal/electromagnetic boundary-condition controls (the
-// mechanical-load controls have moved to applyAggLoadEdit; support controls stay in
-// applySupportEdit).
-func (e *Engine) applyLoadEdit(controlID, value string) {
-	if e.applySupportEdit(controlID, value) {
-		return
-	}
-	e.applyFieldBCEdit(controlID, value)
-}
-
-// applySupportEdit handles the support controls (clamp vs elastic spring), returning whether
-// it matched. The hydrostatic parameters have moved to applyAggLoadEdit.
-func (e *Engine) applySupportEdit(controlID, value string) bool {
+// applyAggSupportEdit routes the 2 support controls (clamp vs elastic spring) to the
+// Analysis support template. Returns whether the control was recognised.
+func (e *Engine) applyAggSupportEdit(controlID, value string) bool {
+	sup := e.analysis.Support()
 	switch controlID {
 	case "support_type":
-		e.extras.SupportType = SupportType(strings.TrimSpace(value))
+		sup.SupportType = strings.TrimSpace(value)
 	case "spring_stiffness":
-		e.extras.SpringStiffMM = panelNum(value, e.extras.SpringStiffMM)
+		sup.SpringStiffMM = panelNum(value, sup.SpringStiffMM)
 	default:
 		return false
 	}
+	e.analysis.SetSupport(sup)
 	return true
+}
+
+// applyLoadEdit handles the thermal/electromagnetic boundary-condition controls (the
+// mechanical-load controls have moved to applyAggLoadEdit; support controls have moved
+// to applyAggSupportEdit).
+func (e *Engine) applyLoadEdit(controlID, value string) {
+	if e.applyAggSupportEdit(controlID, value) {
+		return
+	}
+	e.applyFieldBCEdit(controlID, value)
 }
 
 // applyFieldBCEdit handles the core thermal boundary-condition controls, delegating the

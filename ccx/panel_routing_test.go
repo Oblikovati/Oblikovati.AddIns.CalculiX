@@ -93,6 +93,24 @@ func TestLoadEditsRouteToAggregate(t *testing.T) {
 	}
 }
 
+func TestSupportEditsRouteToAggregate(t *testing.T) {
+	e := NewEngine(nil)
+	e.applyPanelEdit("support_type", "elastic (spring)")
+	e.applyPanelEdit("spring_stiffness", "250")
+
+	sup := e.analysis.Support()
+	if sup.SupportType != "elastic (spring)" {
+		t.Fatalf("aggregate SupportType = %q, want \"elastic (spring)\"", sup.SupportType)
+	}
+	if sup.SpringStiffMM != 250 {
+		t.Fatalf("aggregate SpringStiffMM = %v, want 250", sup.SpringStiffMM)
+	}
+	s, _ := e.study()
+	if s.SupportType != SupportElastic || s.SpringStiffMM != 250 {
+		t.Fatalf("study() support = {%v %v}, want {elastic 250}", s.SupportType, s.SpringStiffMM)
+	}
+}
+
 func TestStudySwitchEditsRouteToAggregate(t *testing.T) {
 	e := NewEngine(nil)
 	e.applyPanelEdit("contact_mode", "contact")
