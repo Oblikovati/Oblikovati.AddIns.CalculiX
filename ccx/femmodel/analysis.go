@@ -32,6 +32,9 @@ func NewDefaultAnalysis() *Analysis {
 	steel.YoungHotGPa, steel.HotTempK = 0, 100
 	a.SetDefaultMaterial(steel)
 	a.AddResult("von Mises stress", 0)
+	sv := a.Solver()
+	sv.BodyScope, sv.ContactMode, sv.FrictionMu = "all solid bodies", false, 0.3
+	a.SetSolver(sv)
 	return a
 }
 
