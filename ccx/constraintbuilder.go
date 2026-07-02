@@ -65,7 +65,7 @@ func (e *Engine) addConstraintFromSelection() {
 	// settings could drift between study() returning and the constraint being appended.
 	// projectAnalysis takes no lock itself, so calling it here is safe.
 	e.mu.Lock()
-	settings, _ := projectAnalysis(e.analysis, e.extras)
+	settings, _ := projectAnalysis(e.analysis)
 	name := fmt.Sprintf("C%d", len(e.analysis.Constraints()))
 	obj := e.analysis.AddConstraint(name, objectForKind(e.builderKind, faces, settings))
 	count := len(e.analysis.Constraints())

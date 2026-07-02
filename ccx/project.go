@@ -4,16 +4,14 @@ package ccx
 
 import "oblikovati.org/calculix/ccx/femmodel"
 
-// projectAnalysis flattens the Analysis tree ONTO the flat extras remainder: it starts from extras
-// and overlays the fields the tree owns — "analysis wins". As of Phase 2.11 every StudySettings
-// field is overlaid from the aggregate, so extras is now only the equivalence base that 2.12 will
-// retire once the overlays are confirmed exhaustive. This single seam keeps the
-// mesh/deck/solve/render pipeline reading a plain StudySettings while the edit model is a tree.
-// projectAnalysis(NewDefaultAnalysis(), defaultSettings()) reproduces
-// defaultSettings() exactly (the equivalence guard). Constraints are carried on StudySettings and
-// returned alongside for callers that want them directly.
-func projectAnalysis(a *femmodel.Analysis, extras StudySettings) (StudySettings, []ConstraintSpec) {
-	s := extras
+// projectAnalysis flattens the Analysis tree into a StudySettings: it starts from the zero value
+// and overlays every field the tree owns — the aggregate is the sole source of truth. This single
+// seam keeps the mesh/deck/solve/render pipeline reading a plain StudySettings while the edit model
+// is a tree. projectAnalysis(NewDefaultAnalysis()) reproduces defaultSettings() exactly (the
+// equivalence guard). Constraints are carried on StudySettings and returned alongside for callers
+// that want them directly.
+func projectAnalysis(a *femmodel.Analysis) (StudySettings, []ConstraintSpec) {
+	s := StudySettings{}
 	s = overlaySolver(a, s)
 	s = overlayMesh(a, s)
 	s = overlayMaterial(a, s)
