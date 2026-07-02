@@ -20,10 +20,13 @@ func TestPanelEditRoutesToAggregate(t *testing.T) {
 	}
 }
 
-func TestPanelEditRoutesRemainderToExtras(t *testing.T) {
+// TestStudyProjectsMultipleAggregateGroups proves projectAnalysis composes several aggregate
+// groups into one StudySettings: after Phase 2.11 every panel control routes to the aggregate
+// (extras writes are gone), so a single study() must reflect both the seeded material group and
+// a freshly edited EM group at once.
+func TestStudyProjectsMultipleAggregateGroups(t *testing.T) {
 	e := NewEngine(nil)
-	// All panel controls are now routed to the aggregate; voltage is fully migrated as of
-	// Phase 2.11 E2. This test verifies that the projection correctly reflects both the
+	// voltage is fully migrated as of Phase 2.11 E2. Verify the projection reflects both the
 	// aggregate material (YoungGPa seeded) and the EM voltage edit (now in the aggregate).
 	e.applyPanelEdit("voltage", "12")
 	em := e.analysis.EM()
