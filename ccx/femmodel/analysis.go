@@ -15,6 +15,7 @@ type Analysis struct {
 	results        []ResultObject
 	constraints    []ConstraintObject
 	load           LoadDefaults
+	support        SupportDefaults
 	nextMat        int
 	nextResult     int
 	nextConstraint int
@@ -40,6 +41,7 @@ func NewDefaultAnalysis() *Analysis {
 	a.SetSolver(sv)
 	a.SetLoad(LoadDefaults{LoadType: "force", LoadN: 100, PressureMPa: 1, GravityG: 1,
 		RotationRadS: 100, DisplacementMM: 0.1, HydroGradientMPaMM: 1e-5, HydroSurfaceZ: 0})
+	a.SetSupport(SupportDefaults{SupportType: "fixed", SpringStiffMM: 1000})
 	return a
 }
 
@@ -66,6 +68,12 @@ func (a *Analysis) Load() LoadDefaults { return a.load }
 
 // SetLoad replaces the default-load parameters.
 func (a *Analysis) SetLoad(l LoadDefaults) { a.load = l }
+
+// Support returns the default-support parameters.
+func (a *Analysis) Support() SupportDefaults { return a.support }
+
+// SetSupport replaces the default-support parameters.
+func (a *Analysis) SetSupport(s SupportDefaults) { a.support = s }
 
 // SetDefaultMaterial replaces the ScopeAll fallback material's mechanical fields, preserving its
 // id and ScopeAll flag (upholding the ≥1-ScopeAll-material invariant). If no ScopeAll material
