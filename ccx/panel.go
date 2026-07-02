@@ -451,8 +451,29 @@ func (e *Engine) applyHeatModeEdit(controlID, value string) {
 	case "rad_ambient":
 		e.extras.RadAmbientK = panelNum(value, e.extras.RadAmbientK)
 	default:
+		if e.applyAggStudySwitchEdit(controlID, value) {
+			return
+		}
 		e.applyEMEdit(controlID, value)
 	}
+}
+
+// applyAggStudySwitchEdit routes the study-wide switches (body scope, contact mode, friction) to the
+// Analysis aggregate's SolverObject. Returns whether it matched.
+func (e *Engine) applyAggStudySwitchEdit(controlID, value string) bool {
+	sv := e.analysis.Solver()
+	switch controlID {
+	case "body_scope":
+		sv.BodyScope = strings.TrimSpace(value)
+	case "contact_mode":
+		sv.ContactMode = strings.TrimSpace(value) == "contact"
+	case "friction":
+		sv.FrictionMu = panelNum(value, sv.FrictionMu)
+	default:
+		return false
+	}
+	e.analysis.SetSolver(sv)
+	return true
 }
 
 // applyEMEdit handles the electromagnetic boundary-condition controls.
@@ -464,12 +485,6 @@ func (e *Engine) applyEMEdit(controlID, value string) {
 		e.extras.EMDriveMode = EMDrive(strings.TrimSpace(value))
 	case "current_density":
 		e.extras.CurrentDensity = panelNum(value, e.extras.CurrentDensity)
-	case "contact_mode":
-		e.extras.ContactMode = strings.TrimSpace(value) == "contact"
-	case "friction":
-		e.extras.FrictionMu = panelNum(value, e.extras.FrictionMu)
-	case "body_scope":
-		e.extras.BodyScope = BodyScope(strings.TrimSpace(value))
 	}
 }
 

@@ -68,3 +68,18 @@ func TestThermalMaterialEditRoutesToAggregate(t *testing.T) {
 		t.Fatalf("study() did not reflect thermal edits: %+v", s)
 	}
 }
+
+func TestStudySwitchEditsRouteToAggregate(t *testing.T) {
+	e := NewEngine(nil)
+	e.applyPanelEdit("contact_mode", "contact")
+	e.applyPanelEdit("friction", "0.2")
+	e.applyPanelEdit("body_scope", "bodies with a selected face")
+	sv := e.analysis.Solver()
+	if !sv.ContactMode || sv.FrictionMu != 0.2 || sv.BodyScope != "bodies with a selected face" {
+		t.Fatalf("switch edits did not land in the solver: %+v", sv)
+	}
+	s, _ := e.study()
+	if !s.ContactMode || s.FrictionMu != 0.2 || string(s.BodyScope) != "bodies with a selected face" {
+		t.Fatalf("study() did not reflect switch edits: %+v", s)
+	}
+}

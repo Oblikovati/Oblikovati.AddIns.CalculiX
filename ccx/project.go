@@ -17,6 +17,9 @@ func projectAnalysis(a *femmodel.Analysis, extras StudySettings) (StudySettings,
 	s.Analysis = AnalysisType(sv.AnalysisType)
 	s.Eigenmodes = sv.Eigenmodes
 	s.TransientTimeS = sv.TransientTimeS
+	s.BodyScope = BodyScope(sv.BodyScope)
+	s.ContactMode = sv.ContactMode
+	s.FrictionMu = sv.FrictionMu
 
 	m := a.Mesh()
 	s.MeshSizeMM = m.MaxSizeMM
