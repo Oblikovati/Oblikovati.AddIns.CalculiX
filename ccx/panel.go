@@ -219,8 +219,8 @@ func labelID(title string) string {
 }
 
 // applyPanelEdit writes one edited study parameter back into the engine, keyed by control id.
-// The 11 tree-owned controls (solver/mesh/material/result) reach the femmodel aggregate via their
-// per-object helpers; everything else writes to e.extras.
+// The migrated controls (solver/mesh/material/result/load/support) reach the femmodel aggregate
+// via their per-object helpers; remaining thermal/EM controls write to e.extras.
 func (e *Engine) applyPanelEdit(controlID, value string) {
 	e.mu.Lock()
 	defer e.mu.Unlock()
