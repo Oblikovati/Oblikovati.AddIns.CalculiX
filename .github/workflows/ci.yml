@@ -131,7 +131,8 @@ jobs:
   # all three OSes; building the vendored solver SOURCE on macOS (its Homebrew Fortran/C++
   # toolchain) is a follow-up.
   solvers:
-    runs-on: ubuntu-latest
+    # The vendored solvers use the GCC 13 toolchain on Ubuntu 24.04.
+    runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v5
       - name: Install build toolchain
